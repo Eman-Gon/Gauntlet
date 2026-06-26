@@ -1516,6 +1516,11 @@ function GauntletWorkbench({
           </div>
         </div>
       </div>
+
+      {/* ShopperPanel -- buyer agent: search, vet, buy */}
+      <div style={{ maxWidth: 1180, margin: "24px auto", padding: "0 28px" }}>
+        <ShopperPanel />
+      </div>
     </div>
   );
 }
