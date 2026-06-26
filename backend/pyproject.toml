@@ -1,0 +1,25 @@
+[project]
+name = "sentinel"
+version = "0.1.0"
+description = "Sentinel — Autonomous burden of proof for the agentic web. Reuses the Receipts cost-aware inference cascade."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sse-starlette",
+    "httpx",
+    "trafilatura",
+    "openai",
+    "anthropic",
+    "tavily-python",
+    "pydantic",
+    "pydantic-settings",
+    "tenacity",
+    "python-dotenv",
+    "orjson",
+    "clickhouse-connect>=1.3.0",
+    "composio>=0.13.1",
+]
+
+[tool.uv]
+package = false
