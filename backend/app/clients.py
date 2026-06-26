@@ -51,6 +51,26 @@ def _use_gmi() -> bool:
     return bool(_effective_gmi_key() and _effective_gmi_base_url())
 
 
+class GMIError(RuntimeError):
+    """GMI returned a non-200 response or was unreachable after retries.
+
+    Carrying a real exception type (never a bare ``raise None``) means the
+    cascade in :func:`chat` can catch a cheap-tier failure and escalate to
+    premium instead of crashing the whole pipeline."""
+
+
+def _anthropic_native_model_id(model: str) -> str:
+    """Map a GMI-style id (``anthropic/claude-sonnet-4.6``) to the native
+    Anthropic id (``claude-sonnet-4-6``) used by the direct-Anthropic fallback.
+
+    GMI prefixes with ``anthropic/`` and versions with a dot; the native API
+    wants neither. No-op for ids already in native form."""
+    m = model
+    if m.startswith("anthropic/"):
+        m = m[len("anthropic/") :]
+    return m.replace(".", "-")
+
+
 # COST TABLE — verified at platform.claude.com on 2026-06-10.
 # Sonnet 4.6: $3 / MTok input, $15 / MTok output (base, no cache, no batch).
 # Cheap tier is imputed (per-attempt floor in CHEAP_ATTEMPT_COST_USD) so the
@@ -64,6 +84,9 @@ _CHEAP_RATES = {
 COST_TABLE: dict[str, dict[str, float]] = {
     settings.CHEAP_MODEL: _CHEAP_RATES,
     settings.PREMIUM_MODEL: _PREMIUM_RATES,
+    # Native-Anthropic forms too, so cost lookups resolve on the direct fallback.
+    _anthropic_native_model_id(settings.CHEAP_MODEL): _CHEAP_RATES,
+    _anthropic_native_model_id(settings.PREMIUM_MODEL): _PREMIUM_RATES,
 }
 
 
@@ -177,17 +200,28 @@ def _inject_no_think(messages: list[dict[str, str]]) -> list[dict[str, str]]:
     return out
 
 
+# HTTP statuses worth retrying: rate-limit/overload (429) and transient 5xx.
+# A 4xx like 401 (bad key) or 404 (unknown model) is permanent — retrying only
+# wastes the demo's time, so we surface it immediately and let chat() escalate.
+_GMI_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+_GMI_ATTEMPTS = 3
+
+
 async def _gmi_chat(
     model: str,
     messages: list[dict[str, str]],
     *,
+    tier: Tier = "cheap",
     max_tokens: int,
     temperature: float,
     timeout: float,
 ) -> ChatResult:
-    """Direct httpx call to GMI — bypasses the OpenAI SDK entirely.
-    Uses the same approach as a working requests.post() test.
-    Retries on 429 (rate limit) with exponential backoff."""
+    """Direct httpx call to GMI's OpenAI-compatible ``/chat/completions``.
+
+    Retries transient failures (429 overload, 5xx, network) with short
+    exponential backoff, then raises :class:`GMIError` — *never* ``None``.
+    Non-retryable 4xx (bad model id, bad key) raise immediately so the
+    cascade can escalate without burning ~15s of pointless backoff."""
     import asyncio as _asyncio
 
     import httpx
@@ -203,40 +237,45 @@ async def _gmi_chat(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    last_exc: Exception | None = None
-    for attempt in range(3):
+    # Seed with a concrete error so an early `break` can never raise None.
+    last_exc: Exception = GMIError(f"GMI call to {model!r} failed before any response")
+    for attempt in range(_GMI_ATTEMPTS):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(url, headers=headers, json=body)
-            if resp.status_code == 429:
-                wait = 2.0 * (2**attempt)
-                log.warning(
-                    "GMI 429 rate limit, retrying in %.1fs (attempt %d/3)",
-                    wait,
-                    attempt + 1,
-                )
-                await _asyncio.sleep(wait)
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            choice = data["choices"][0] if data.get("choices") else {}
-            msg = choice.get("message", {})
-            text = msg.get("content", "") or ""
-            usage = data.get("usage", {})
-            return ChatResult(
-                text=text,
-                tokens_in=usage.get("prompt_tokens", 0),
-                tokens_out=usage.get("completion_tokens", 0),
-                model=model,
-                tier="cheap",
-            )
-        except Exception as exc:
+        except Exception as exc:  # network error / timeout — retryable
             last_exc = exc
-            if attempt < 2:
-                wait = 1.0 * (2**attempt)
-                log.warning("GMI call failed, retrying in %.1fs: %s", wait, exc)
-                await _asyncio.sleep(wait)
-    raise last_exc  # type: ignore[misc]
+        else:
+            if resp.status_code == 200:
+                data = resp.json()
+                choice = data["choices"][0] if data.get("choices") else {}
+                msg = choice.get("message", {})
+                text = msg.get("content", "") or ""
+                usage = data.get("usage", {})
+                return ChatResult(
+                    text=text,
+                    tokens_in=usage.get("prompt_tokens", 0),
+                    tokens_out=usage.get("completion_tokens", 0),
+                    model=model,
+                    tier=tier,
+                )
+            last_exc = GMIError(
+                f"GMI {resp.status_code} for model {model!r}: {resp.text[:200]}"
+            )
+            if resp.status_code not in _GMI_RETRYABLE_STATUS:
+                raise last_exc
+
+        if attempt < _GMI_ATTEMPTS - 1:
+            wait = 1.0 * (2**attempt)  # 1s, 2s — short so escalation stays snappy
+            log.warning(
+                "GMI call failed (attempt %d/%d), retrying in %.1fs: %s",
+                attempt + 1,
+                _GMI_ATTEMPTS,
+                wait,
+                last_exc,
+            )
+            await _asyncio.sleep(wait)
+    raise last_exc
 
 
 async def _openai_chat(
@@ -285,63 +324,29 @@ async def _openai_chat(
     )
 
 
-async def chat(
-    tier: Tier,
+async def _run_premium(
     messages: list[dict[str, str]],
     *,
-    max_tokens: int = 512,
-    temperature: float = 0.0,
-    timeout_s: Optional[float] = None,
+    max_tokens: int,
+    temperature: float,
+    timeout: float,
 ) -> ChatResult:
-    """Unified messages-in / text+usage-out entrypoint. Both tiers go through here
-    so the telemetry wrapper has ONE surface to instrument. Messages use the
-    OpenAI shape: [{"role": "system"|"user"|"assistant", "content": "..."}]."""
-    if tier == "cheap" and settings.CHEAP_FALLBACK_TO_PREMIUM:
-        tier = "premium"
-
-    if timeout_s is not None:
-        timeout = timeout_s
-    elif tier == "cheap":
-        timeout = min(settings.LLM_TIMEOUT_S, settings.CHEAP_LLM_TIMEOUT_S)
-    else:
-        timeout = settings.LLM_TIMEOUT_S
-
-    if tier == "cheap":
-        model = settings.CHEAP_MODEL
-        no_think = _needs_no_think(model)
-        msgs = _inject_no_think(messages) if no_think else messages
-        if _use_gmi():
-            return await _gmi_chat(
-                model,
-                msgs,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                timeout=timeout,
-            )
-        return await _openai_chat(
-            cheap_client(),
-            model,
-            msgs,
-            tier="cheap",
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=timeout,
-            disable_thinking=no_think,
-        )
-
+    """Premium tier: GMI if configured, else direct-Anthropic native."""
     # premium — GMI if configured, else direct Anthropic native
     if _use_gmi():
         return await _gmi_chat(
             settings.PREMIUM_MODEL,
             messages,
+            tier="premium",
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=timeout,
         )
 
     # Direct-Anthropic native fallback. Split out system message; Anthropic
-    # takes it separately.
-    model = settings.PREMIUM_MODEL
+    # takes it separately. Normalize the id to native form (PREMIUM_MODEL is
+    # stored in GMI format while GMI is the active provider).
+    model = _anthropic_native_model_id(settings.PREMIUM_MODEL)
     system_parts = [m["content"] for m in messages if m["role"] == "system"]
     convo = [m for m in messages if m["role"] != "system"]
     kwargs: dict[str, Any] = {
@@ -363,6 +368,73 @@ async def chat(
         model=model,
         tier="premium",
         raw=resp,
+    )
+
+
+async def chat(
+    tier: Tier,
+    messages: list[dict[str, str]],
+    *,
+    max_tokens: int = 512,
+    temperature: float = 0.0,
+    timeout_s: Optional[float] = None,
+) -> ChatResult:
+    """Unified messages-in / text+usage-out entrypoint. Both tiers go through here
+    so the telemetry wrapper has ONE surface to instrument. Messages use the
+    OpenAI shape: [{"role": "system"|"user"|"assistant", "content": "..."}].
+
+    Cascade safety net: when a cheap-tier call fails (GMI overload, bad model,
+    network), we escalate to premium rather than letting the exception reach the
+    pipeline stages — which would otherwise silently degrade to mock/raw output.
+    """
+    if tier == "cheap" and settings.CHEAP_FALLBACK_TO_PREMIUM:
+        tier = "premium"
+
+    if timeout_s is not None:
+        timeout = timeout_s
+    elif tier == "cheap":
+        timeout = min(settings.LLM_TIMEOUT_S, settings.CHEAP_LLM_TIMEOUT_S)
+    else:
+        timeout = settings.LLM_TIMEOUT_S
+
+    if tier == "cheap":
+        model = settings.CHEAP_MODEL
+        msgs = _inject_no_think(messages) if _needs_no_think(model) else messages
+        try:
+            if _use_gmi():
+                return await _gmi_chat(
+                    model,
+                    msgs,
+                    tier="cheap",
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    timeout=timeout,
+                )
+            return await _openai_chat(
+                cheap_client(),
+                model,
+                msgs,
+                tier="cheap",
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=timeout,
+            )
+        except Exception as exc:
+            log.warning("cheap tier (%s) failed, escalating to premium: %s", model, exc)
+            # Escalate with the original (un-injected) messages and the full
+            # premium timeout — the whole point of the cascade is this net.
+            return await _run_premium(
+                messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=settings.LLM_TIMEOUT_S,
+            )
+
+    return await _run_premium(
+        messages,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        timeout=timeout,
     )
 
 
