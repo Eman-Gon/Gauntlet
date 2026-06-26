@@ -12,10 +12,6 @@ GET  /gauntlet/status             — live watcher state (watching/triggers/etc.
 GET  /activity/stream             — SSE of the global activity bus
                                     (every gauntlet_trigger + per-trigger
                                     pipeline event, ready for D07's feed)
-
-D10 additions (Thesys C1 / OpenUI):
-POST /interrogate                 — question + MarketResult → widget spec the
-                                    "Interrogate the market" panel renders.
 """
 
 from __future__ import annotations
@@ -310,17 +306,14 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/debug/config")
 async def debug_config() -> dict:
-    from app.clients import _use_pioneer, _use_tf
+    from app.clients import _use_gmi
     from app.config import settings as cfg
     return {
-        "use_pioneer": _use_pioneer(),
-        "use_tf": _use_tf(),
-        "pioneer_base_url": cfg.PIONEER_BASE_URL[:30] + "..." if cfg.PIONEER_BASE_URL else "",
-        "pioneer_model": cfg.PIONEER_MODEL,
-        "pioneer_api_key_set": bool(cfg.PIONEER_API_KEY),
+        "use_gmi": _use_gmi(),
         "cheap_model": cfg.CHEAP_MODEL,
         "premium_model": cfg.PREMIUM_MODEL,
         "anthropic_key_set": bool(cfg.ANTHROPIC_API_KEY),
+        "gmi_key_set": bool(cfg.GMI_API_KEY),
         "tavily_key_set": bool(cfg.TAVILY_API_KEY),
     }
 
@@ -444,35 +437,8 @@ async def market_status(category: str, job_id: str) -> Any:
     return {"status": "complete", "category": category}
 
 
-class InterrogateRequest(BaseModel):
-    message: str
-    history: list[dict] = Field(default_factory=list)
 
 
-@app.post("/interrogate")
-async def interrogate(req: InterrogateRequest) -> EventSourceResponse:
-    """D10 — Thesys C1 'Interrogate the market' SSE endpoint.
-    Streams a generative-UI response grounded in the live MarketResult."""
-    from app.thesys import stream_interrogate
-
-    # Use the freshest available market: gauntlet watch-loop state, or the
-    # most recently completed /audit run (whichever has more vendors).
-    market = gauntlet_watch.state().market
-    for run_id, task in _TASKS.items():
-        if task and task.done() and not task.exception():
-            try:
-                candidate = task.result()
-                if candidate and len(candidate.vendors) > len(market.vendors):
-                    market = candidate
-                    gauntlet_watch.state().market = candidate
-            except Exception:
-                pass
-
-    async def gen():
-        async for chunk in stream_interrogate(req.message, req.history, market):
-            yield {"data": chunk}
-
-    return EventSourceResponse(gen())
 
 
 @app.get("/activity/stream")
@@ -503,33 +469,3 @@ async def activity_stream(request: Request) -> EventSourceResponse:
     return EventSourceResponse(gen())
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# D10 — Thesys C1 / OpenUI: "Interrogate the market"
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class InterrogateRequest(BaseModel):
-    question: str
-    market: dict[str, Any] = Field(
-        ...,
-        description="A MarketResult (as returned by /audit/{id}/results) to ground the answer.",
-    )
-
-
-@app.post("/interrogate")
-async def interrogate_market(req: InterrogateRequest) -> JSONResponse:
-    """Question + MarketResult → widget spec. The model is grounded on the
-    supplied audit only; the panel renders the widgets in Gauntlet's own glass
-    components, so generated content never defines the design language."""
-    from app.interrogate import interrogate as run_interrogate
-    from app.schemas import MarketResult
-
-    if not req.question.strip():
-        raise HTTPException(status_code=422, detail="question is required")
-    try:
-        market = MarketResult.model_validate(req.market)
-    except Exception as exc:  # noqa: BLE001 — surface a clean 422 to the panel
-        raise HTTPException(status_code=422, detail=f"invalid market payload: {exc}")
-
-    result = await run_interrogate(req.question, market)
-    return JSONResponse(result)

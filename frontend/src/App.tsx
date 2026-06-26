@@ -3,7 +3,6 @@ import { GauntletLogo } from './components/GauntletLogo'
 import { StatusStrip } from './components/StatusStrip'
 import { ActivityFeed } from './components/ActivityFeed'
 import { GlassCard } from './components/GlassCard'
-import { InterrogatePanel } from './components/InterrogatePanel'
 
 // Backend API base. Empty string keeps the Vite dev proxy working locally
 // (relative /audit hits the Vite proxy → localhost:8000). On Railway the
@@ -479,41 +478,6 @@ const NIMBUS_CLAIM_SETS = [
   ],
 ]
 
-function SimulateAgentFetchButton({ apiBase }: { apiBase: string }) {
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
-
-  async function fetch402() {
-    setBusy(true)
-    setDone(false)
-    try {
-      await fetch(`${apiBase}/api/market/ai_support_agents/verdicts`)
-      setDone(true)
-      setTimeout(() => setDone(false), 3000)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <button
-      onClick={fetch402}
-      disabled={busy}
-      className="pill"
-      title="Simulate an AI agent fetching verdicts via the x402 endpoint — ticks Agents paid"
-      style={{
-        height: 34, fontSize: 12,
-        background: done ? 'rgba(34,197,94,0.15)' : 'rgba(99,102,241,0.1)',
-        borderColor: done ? 'rgba(34,197,94,0.4)' : 'rgba(99,102,241,0.3)',
-        color: done ? 'rgb(134,239,172)' : 'var(--accent)',
-        opacity: busy ? 0.6 : 1,
-      }}
-    >
-      {busy ? 'Fetching…' : done ? '✓ Agent paid' : '🤖 Simulate agent fetch'}
-    </button>
-  )
-}
-
 function SimulateChangeButton({ apiBase }: { apiBase: string }) {
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
@@ -809,17 +773,12 @@ export default function App() {
   const [vendors, setVendors] = useState<VendorResult[]>([])
   const [animedIn, setAnimedIn] = useState<Set<string>>(new Set())
   const [marketResult, setMarketResult] = useState<MarketResult | null>(null)
-  const [publishedCount, setPublishedCount] = useState(0)
-  const [paidCount, setPaidCount] = useState(0)
   const [reauditTick, setReauditTick] = useState(0)
 
   const startTimeRef = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const evtRef = useRef<EventSource | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const onPublishedOk = useCallback(() => setPublishedCount(c => c + 1), [])
-  const onPaidFetch = useCallback(() => setPaidCount(c => c + 1), [])
 
   const stopTimers = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -1097,8 +1056,6 @@ export default function App() {
       <div className="reveal-down d-0">
         <StatusStrip
           apiBase={API_BASE}
-          publishedCount={publishedCount}
-          paidCount={paidCount}
         />
       </div>
 
@@ -1121,8 +1078,6 @@ export default function App() {
         }}>
           <ActivityFeed
             apiBase={API_BASE}
-            onPublishedOk={onPublishedOk}
-            onPaidFetch={onPaidFetch}
           />
         </aside>
 
@@ -1161,7 +1116,6 @@ export default function App() {
                 {phase === 'running' ? 'Auditing…' : 'Re-audit'}
               </button>
               <SimulateChangeButton apiBase={API_BASE} />
-              <SimulateAgentFetchButton apiBase={API_BASE} />
               <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
                 {fmtMs(stats.elapsedMs)} · {fmtCost(stats.totalCost)} · {stats.calls} calls
               </span>
@@ -1200,11 +1154,6 @@ export default function App() {
             </div>
           )}
 
-          {/* D10 — "Interrogate the market" generative panel. Contained glass
-              card, grounded on the current MarketResult, rendered in our theme. */}
-          {marketResult && sorted.length > 0 && (
-            <InterrogatePanel marketData={marketResult} />
-          )}
         </main>
       </div>
 

@@ -14,7 +14,7 @@ best-effort async check that logs without blocking (RPC not always reachable
 from the demo environment).
 
 Replay protection: used hashes stored in-memory with TTL = quote expiry.
-In production this moves to Redis / ClickHouse."""
+In production this moves to a persistent store."""
 
 from __future__ import annotations
 

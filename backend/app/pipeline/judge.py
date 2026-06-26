@@ -10,11 +10,10 @@ NAIVE MODE = same code path with cascade disabled, everything Sonnet."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 
-from app.clients import attempt_cost_usd, chat, cost_usd, record_feedback
+from app.clients import attempt_cost_usd, chat, cost_usd
 from app.config import settings
 from app.schemas import Claim, Evidence, Judgment, Verdict
 from app.telemetry import TelemetryBus, measure
@@ -128,10 +127,6 @@ async def judge(
         {"role": "user", "content": _build_user(claim, evidence)},
     ]
     threshold = settings.JUDGE_CONFIDENCE_THRESHOLD
-    cheap_low_conf: Judgment | None = None
-    cheap_text: str = ""
-    cheap_inference_id: str | None = None
-
     # --- cheap tier first (unless naive mode) ---
     if not naive:
         async with measure(
@@ -157,13 +152,6 @@ async def judge(
                 )
                 if judgment and judgment.confidence >= threshold:
                     return judgment
-                if judgment is not None:
-                    # Hold onto the under-threshold cheap verdict + Pioneer's
-                    # per-call inference_id so the premium block can ship the
-                    # disagreement pair to /inferences/{id}/feedback (D02 S4).
-                    cheap_low_conf = judgment
-                    cheap_text = result.text
-                    cheap_inference_id = result.inference_id
             except Exception:
                 m.cost_usd = attempt_cost_usd(settings.CHEAP_MODEL)
                 pass
@@ -189,17 +177,6 @@ async def judge(
                 evidence_urls=evidence.urls,
             )
             if judgment:
-                # Fire-and-forget adaptive feedback (D02 S4). No-op when the
-                # cheap call wasn't Pioneer (no inference_id) — see
-                # clients.record_feedback.
-                if cheap_low_conf is not None and cheap_inference_id:
-                    asyncio.create_task(
-                        record_feedback(
-                            inference_id=cheap_inference_id,
-                            cheap_verdict_text=cheap_text,
-                            premium_verdict_text=result.text,
-                        )
-                    )
                 return judgment
         except Exception:
             pass

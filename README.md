@@ -84,15 +84,9 @@ Additional marketplace primitives:
 - `buyer-agent/buyer_agent.py` supports policy flags such as `--min-score`,
   `--allow-failed`, and repeated `--block-failed-category`.
 
-Gauntlet watches the marketing pages of every vendor in a category, detects
-when claims change, re-audits them against public evidence on a self-improving
-inference cascade — no human in the loop — then publishes the structured
-audit to **cited.md** where other AI agents can cite it, and charges those
-agents per fetch via **x402**.
-
-Marketing inflated for humans is invisible to agents. Agents buying software
-need machine-readable trust. Gauntlet produces it, keeps it fresh
-autonomously, and gets paid for it.
+Gauntlet also watches the marketing pages of every vendor in a category,
+detects when claims change, re-audits them against public evidence on a
+self-improving inference cascade — no human in the loop.
 
 > We measure **public substantiation**, never truth. Verdicts are
 > `SUPPORTED` / `SELF_REPORTED_ONLY` / `NO_PUBLIC_RECEIPT_FOUND`, surfaced as
@@ -100,38 +94,23 @@ autonomously, and gets paid for it.
 
 ## Attribution
 
-Audit engine adapted from our prior project **Receipts** (built June 10,
-2026). Everything in the autonomy / inference / publish / payment layers was
-built today at **Harness Engineering Hack** (June 12, 2026 · AWS Builder Loft
-SF · tokens&).
+Audit engine, cascade, telemetry, and dashboard adapted from our prior
+projects **Receipts** (June 10, 2026) and **Gauntlet** (June 12, 2026). The
+agent-probing layer, behavioral verdicts, reputation and memory layer,
+reliability report, controllable target agent, buyer-agent demo, and AgentBox
+container packaging were built at the **Beta Fund AI Agents for Hire
+Hackathon** (June 26, 2026 · AWS Builder Loft SF).
 
 ## What's in here today
 
 - **Audit engine** (D00, ported from Receipts): ingest → extract → hunt →
-  judge → advise pipeline; cascade routing (`cheap → premium`);
-  leaderboard + claim inflation index; 49 historical telemetry runs under
-  `backend/telemetry_history/` for the ClickHouse backfill in D08.
-- **TrueFoundry gateway seam** (D01-prep): both tiers route through TF
-  when its four env vars are set; falls back to direct providers otherwise.
-- **Pioneer adaptive cheap tier** (D02): `cheap_client()` priority is
-  TF → Pioneer → D00 stand-in. `record_feedback()` fires a `{claim,
-  cheap_verdict, premium_verdict}` POST to `PIONEER_FEEDBACK_URL` on every
-  escalation — fire-and-forget, never blocks. `/no_think` is gated to
-  qwen-class models so Pioneer prompts stay clean. Cost surfaces non-zero
-  for the Pioneer model string via `PIONEER_INPUT/OUTPUT_PER_MTOK`.
+  judge → advise pipeline; three-tier cascade (`Qwen3-30B-A3B cheap →
+  Nemotron Ultra medium → Claude Sonnet premium`); leaderboard + claim
+  inflation index.
 - **Gauntlet watch loop** (D03): asyncio task ticks every
   `WATCH_INTERVAL_S`, sha256-diffs fresh-fetched vendor pages, fires
   autonomous re-audits via the existing pipeline. Includes a fictional
-  controllable test vendor at `/test-vendor/nimbus` for the live-edit
-  stunt. Publish + notify seams (D04/D09) emit dedicated activity events
-  even when keys are absent (`skipped:no_key`) so the feed always renders
-  the full loop.
-- **cited.md publisher** (D04): full markdown compiler (category,
-  per-vendor verdicts, scores, inflation index, evidence links,
-  substantiation-not-truth disclaimer verbatim). Idempotency cache
-  hash-keys audits → no double-publish on unchanged re-audits. Targets
-  cited.md's publisher only (`afa1052b-…`). Parked on `geo_question_id`
-  schema requirement — Senso onboarding flow deliberately not run.
+  controllable test vendor at `/test-vendor/nimbus` for the live-edit stunt.
 - **Liquid-glass UI + live activity feed** (D07): status strip subscribes
   `/gauntlet/status`; activity feed subscribes `/activity/stream` via SSE
   reusing the audit-stream `EventSource` pattern. Market inflation as the
@@ -141,10 +120,9 @@ SF · tokens&).
   (Unsupported / Verified / Unverified / No evidence) absent.
 - **Identity**: Gauntlet wordmark, radar-pulse logo, deep near-black glass,
   one indigo→cyan accent, desaturated verdict palette.
-- **Env contract**: only `ANTHROPIC_API_KEY` + `TAVILY_API_KEY` required
-  at boot. Every later integration (Pioneer, TF, Senso, x402, ClickHouse,
-  Composio, Thesys) is silently disabled until its key + the dispatch's
-  config var land.
+- **Env contract**: only `ANTHROPIC_API_KEY` or `GMI_API_KEY` + `TAVILY_API_KEY`
+  required at boot. GMI powers cheap-tier inference and AgentBox deploy.
+  Every integration is silently disabled until its key lands.
 - `HONEST_AD_ENABLED=false`. Magnific isn't a sponsor here.
 
 ## Quickstart
@@ -187,30 +165,20 @@ into `backend/app/config.py` if the application needs to read them at runtime.
 For tools without a stable public price, the frontend intentionally shows
 `pricing not tracked`.
 
-## Airbyte + ClickHouse Cloud
-
-Docker is not required for Gauntlet. Set `CLICKHOUSE_URL`,
-`CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_DATABASE` to stream
-telemetry into ClickHouse Cloud while keeping the JSONL logs as replay backup.
-Use Airbyte Cloud to sync external context into the same warehouse. See
-`docs/airbyte-clickhouse-cloud.md`.
-
 ## Build map
 
 | # | Dispatch | Status |
 |---|---|---|
-| 00 | Scaffold + clean + new identity | ✅ shipped |
-| 01 | TrueFoundry gateway routes both tiers | 🟡 seam in (env-gated; falls back to direct when blank) |
-| 02 | Pioneer adaptive cheap tier + feedback loop | 🟡 wired (S1 fallback path) — needs `PIONEER_BASE_URL` + `PIONEER_MODEL` in `.env` and `PIONEER_FEEDBACK_URL` from rep |
-| 03 | Gauntlet watch loop + controllable test page | ✅ shipped |
-| 04 | cited.md publish via Senso | 🟡 compiler + idempotency cache + conditional POST built — parked on `SENSO_GEO_QUESTION_ID` (schema gap; onboarding flow deliberately not run) |
-| 05 | x402 paywall on verdict endpoint | ❌ not started (x402 reference clone needed) |
-| 06 | Buyer agent (the money moment) | ❌ not started (depends on D05) |
-| 07 | Activity feed + status strip (the visible loop) | ✅ shipped |
-| 08 | ClickHouse sink + 49-run backfill | ❌ SDK installed; code not yet |
-| 09 | Composio claim-change alerts | 🟡 notify seam exists (D03) — Composio wire pending key |
-| 10 | Thesys C1 "Interrogate the market" panel | ❌ OpenUI skill installed; integration not yet |
-| 11 | 3-min demo video + Devpost submission | ❌ |
+| 00 | Scaffold + clean + Gauntlet identity | ✅ shipped |
+| 01 | Target-agent adapter + probe battery | ✅ shipped |
+| 02 | Behavioral verdicts + reliability score | ✅ shipped |
+| 03 | Reputation and memory layer (grudge + escalation) | ✅ shipped |
+| 04 | Reliability endpoint `/agent/{id}/reliability` | ✅ shipped |
+| 05 | Controllable fictional target agent (Nimbus) | ✅ shipped |
+| 06 | Buyer-agent demo (vet-then-hire decision) | ✅ shipped |
+| 07 | Activity feed + status strip | ✅ shipped |
+| 08 | AgentBox / GMI container deploy | 🟡 Dockerfile built; listing pending venue wifi |
+| 09 | 3-min demo video + submission | ❌ |
 
 Legend: ✅ shipped · 🟡 code wired, parked on a key / external schema · ❌ not started.
 
@@ -222,20 +190,17 @@ gauntlet/
 │  ├─ app/
 │  │  ├─ pipeline/         ingest, extract, hunt, judge, advise, orchestrator,
 │  │  │                    red_flag, honest_ad (flagged off)
-│  │  ├─ clients.py        cheap (TF > Pioneer > stand-in) + premium tier seam,
-│  │  │                    cost_usd, record_feedback (D02 Pioneer adaptive)
+│  │  ├─ clients.py        three-tier cascade (GMI cheap → medium → Anthropic
+│  │  │                    premium), cost_usd
 │  │  ├─ cache.py          sha256-keyed JSON cache (use cache.set(), not raw writes)
 │  │  ├─ telemetry.py      TelemetryBus + measure() + JSONL logger
 │  │  ├─ scoring.py        substantiation score + claim inflation index
 │  │  ├─ schemas.py        Pydantic schemas-first contracts
 │  │  ├─ config.py         settings + boot-key gate
 │  │  ├─ gauntlet_watch.py D03 watch loop: fetch → sha256 diff → re-audit →
-│  │  │                    publish/notify seams → activity bus
-│  │  ├─ publish.py        D04 cited.md compiler + idempotency cache +
-│  │  │                    conditional POST to /content-engine/publish
-│  │  ├─ notify.py         D09 Composio delta-post seam
+│  │  │                    activity bus emit
 │  │  ├─ test_vendor.py    D03 controllable test page (Nimbus, fictional)
-│  │  └─ server.py         POST /audit · SSE /audit/{id}/stream ·
+│  │  └─ server.py         POST /vet · POST /audit · GET /agent/{id}/reliability
 │  │                       GET /gauntlet/status · SSE /activity/stream ·
 │  │                       GET /healthz · POST /test-vendor/nimbus
 │  ├─ data/vendors/        ai_support_agents.json, ai_sdrs.json

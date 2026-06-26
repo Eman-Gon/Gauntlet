@@ -33,10 +33,14 @@ them up.
 
 ## What it does
 
-Gauntlet watches the marketing pages of every vendor in a category. When a claim
+Gauntlet is a hireable agent that vets other agents. Give it a target agent
+endpoint and it runs a battery of behavioral probes, records transcripts, scores
+reliability, persists reputation memory, and exposes `GET /agent/{id}/reliability`
+so buyers and other agents can check before hiring.
+
+Gauntlet also watches the marketing pages of every vendor in a category. When a claim
 changes, it re-audits that vendor against public evidence on a self-improving
-inference cascade, publishes the structured result to **cited.md** where other
-agents can read it, and charges those agents per fetch via **x402**.
+inference cascade.
 
 The audit pipeline is a chain of specialized stages:
 
@@ -77,12 +81,10 @@ below `JUDGE_CONFIDENCE_THRESHOLD`:
 
 $$\text{route}(c) = \begin{cases} \texttt{cheap} & \text{conf}_{\text{cheap}}(c) \ge \tau \\ \texttt{premium} & \text{otherwise} \end{cases}$$
 
-The cheap client resolves through a priority chain — **TrueFoundry gateway →
-Pioneer adaptive tier → local stand-in** — and on every escalation it fires a
-fire-and-forget `{claim, cheap_verdict, premium_verdict}` feedback POST so the
-cheap tier can *learn from the premium tier's corrections*. That's the
-"self-improving" part: the cascade gets cheaper over time as the small model
-absorbs where the big model overruled it.
+The cheap client resolves through **GMI Cloud** (OpenAI-compatible, 200+ models)
+or falls back to an Anthropic stand-in. Premium goes through GMI when configured,
+else direct Anthropic native. GMI is also the AgentBox deploy platform — one deep
+integration that handles both inference and listing.
 
 **Schemas-first.** Every stage boundary is a Pydantic contract (`schemas.py`), so
 the pipeline stages are independently testable and the telemetry is structured
@@ -90,17 +92,13 @@ from the first byte. A `sha256`-keyed cache means an unchanged re-audit is free
 and never double-publishes.
 
 **Env-gated integrations.** The hardest product decision was making a demo that
-*always runs* while leaving room for a dozen sponsor integrations. We settled on a
-strict boot contract: only `ANTHROPIC_API_KEY` + `TAVILY_API_KEY` are required to
-start. Every later integration — Pioneer, TrueFoundry, Senso, x402, ClickHouse,
-Composio, Thesys — stays silently disabled until *both* its key and its config
-land. The publish and notify seams still emit `skipped:no_key` activity events
-when a key is absent, so the feed renders the full loop end-to-end even on a
-laptop with nothing configured.
+*always runs*. We settled on a strict boot contract: only `ANTHROPIC_API_KEY`
+or `GMI_API_KEY` plus `TAVILY_API_KEY` are required to start. Every later
+integration stays silently disabled until its key lands. The memory layer
+defaults to local JSON so the demo always runs with zero external setup.
 
-**Telemetry → warehouse.** Every run logs structured JSONL; 49 historical runs are
-checked in for a ClickHouse Cloud backfill, with Airbyte syncing external context
-into the same warehouse for leaderboard analytics.
+**Telemetry.** Every run logs structured JSONL; 49 historical runs are checked in
+under `backend/telemetry_history/` for reference and replay.
 
 ## What we learned
 
@@ -112,14 +110,13 @@ into the same warehouse for leaderboard analytics.
   nothing.
 - **A confidence-gated cascade is most of the cost story.** Routing the easy
   claims to a small model and reserving the premium model for genuine ambiguity
-  did far more for unit economics than any single model swap — and the feedback
-  loop means that ratio improves with use.
+  did far more for unit economics than any single model swap.
 - **Designing for "key-absent" makes a system honest.** Forcing every integration
   to degrade gracefully to a visible `skipped:no_key` event meant we were never
   faking the demo — the loop you see is the loop that runs.
-- **The money moment is a paywall, not a pitch.** The clearest way to prove agents
-  *need* this is to make one pay for it: a buyer agent fetching a verdict through
-  an x402 paywall is worth more than any slide.
+- **The hire decision is the proof.** The clearest way to prove agents need this
+  is to show one making a hiring decision on reliability data — refusing the agent
+  that failed the gauntlet and hiring the one that passed.
 
 ## Challenges we faced
 
@@ -132,21 +129,15 @@ into the same warehouse for leaderboard analytics.
   happily publish duplicates. Hash-keying audits and caching by content was
   essential to keep cited.md clean — an unchanged page costs nothing and
   republishes nothing.
-- **External schema gaps.** The cited.md publish path is fully built — markdown
-  compiler, idempotency cache, conditional POST — but parked on a
-  `geo_question_id` schema requirement in the publisher's onboarding flow, which
-  we deliberately chose not to force during the hack. Knowing *when not to ship a
-  half-integration* was its own discipline.
-- **Scope under a clock.** Gauntlet's audit engine was adapted from our prior
-  project **Receipts**; everything in the autonomy, inference-cascade, publish,
-  and payment layers was built in a single day at **Harness Engineering Hack**
-  (June 12, 2026 · AWS Builder Loft SF). Deciding what to wire as a *seam* (ready
-  the moment a key lands) versus what to fully ship was the constant trade.
+- **Scope under a clock.** The audit engine was adapted from our prior projects
+  Receipts and Gauntlet; the agent-probing layer, behavioral verdicts, reputation
+  memory, and AgentBox packaging were built at the **Beta Fund AI Agents for Hire
+  Hackathon** (June 26, 2026 · AWS Builder Loft SF). Deciding what to wire as a
+  seam versus what to fully ship was the constant trade.
 
 ## What's next
 
-Close the loop end-to-end: ship the **x402 paywall** on the verdict endpoint and
-the **buyer agent** that pays for a fetch — the full money moment — then turn on
-the ClickHouse sink for the 49-run backfill and the Composio claim-change alerts
-that are already seamed in. The vision is simple: **every claim on the agentic
-web, carrying its own receipt, priced per read.**
+Every agent on the marketplace, continuously vetted, with a reputation that
+compounds. Trust as a hireable primitive of the agent economy. The reliability
+endpoint becomes the standard buyers and orchestrators call before hiring —
+**Gauntlet Certified** as the SOC 2 of agent behavior.

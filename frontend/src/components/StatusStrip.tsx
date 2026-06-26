@@ -34,12 +34,8 @@ function fmtAgo(ts: number | null): string {
 
 export function StatusStrip({
   apiBase,
-  publishedCount,
-  paidCount,
 }: {
   apiBase: string
-  publishedCount: number
-  paidCount: number
 }) {
   const [status, setStatus] = useState<GauntletStatus | null>(null)
   const [tick, setTick] = useState(0)
@@ -162,22 +158,6 @@ export function StatusStrip({
           label="Triggers"
           value={String(status?.triggers_count ?? 0)}
           title="Autonomous re-audits fired since boot (claim hash changed)."
-        />
-        <CounterCell
-          label="Published"
-          value={String(publishedCount)}
-          muted={publishedCount === 0}
-          title={publishedCount === 0
-            ? 'Will populate when SENSO_API_KEY lands and publishes flip from skipped to ok.'
-            : 'Audits published to cited.md this session.'}
-        />
-        <CounterCell
-          label="Agents paid"
-          value={String(paidCount)}
-          muted={paidCount === 0}
-          title={paidCount === 0
-            ? 'Will tick when D06 buyer agent pays through x402.'
-            : 'Paid verdict fetches via x402 this session.'}
         />
       </div>
     </div>

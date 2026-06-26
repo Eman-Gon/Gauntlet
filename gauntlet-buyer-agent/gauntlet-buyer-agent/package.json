@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@guildai/agents-sdk": "*",
-    "@guildai-services/guildai~github": "*",
     "zod": "^4.3.0"
   },
   "files": [

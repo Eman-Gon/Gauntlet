@@ -12,9 +12,7 @@ change:
      advise/vendor_done) mirrors onto activity, ready for D07's feed
   5. swap the new VendorResult into the long-lived MarketResult, finalize it
      (recompute credibility + inflation index + clusters + benchmark)
-  6. call publish(market) — seam, no-op without SENSO_API_KEY (D04)
-  7. call notify(delta) — seam, no-op without COMPOSIO_API_KEY (D09)
-  8. emit `gauntlet_reaudit_done` with old→new score
+  6. emit `gauntlet_reaudit_done` with old→new score
 
 The watch_list seeds with the ai_support_agents preset (is_test=False, never
 live-edited on stage) plus Nimbus (is_test=True, our controllable test page).
@@ -38,10 +36,8 @@ from typing import Optional
 
 from app import cache
 from app.config import settings
-from app.notify import GauntletDelta, notify
 from app.pipeline.ingest import fetch_text_uncached
 from app.pipeline.orchestrator import run_vendor
-from app.publish import publish
 from app.schemas import MarketResult, TelemetryEvent, VendorResult
 from app.scoring import finalize_market
 from app.telemetry import TelemetryBus
@@ -95,9 +91,7 @@ def state() -> GauntletState:
 
 
 def _seed_watch_list(s: GauntletState) -> None:
-    """Real vendors from the preset + our fictional Nimbus test page. The
-    Nimbus URL is configurable so the demo can swap to a Render-hosted copy
-    later (constitution §4 forward note) without code change."""
+    """Real vendors from the preset + our fictional Nimbus test page."""
     preset_path = _DATA_DIR / _DEFAULT_PRESET
     try:
         data = json.loads(preset_path.read_text())
@@ -116,6 +110,7 @@ def _seed_watch_list(s: GauntletState) -> None:
 
 
 def _hash(text: str) -> str:
+
     """Stable content hash — collapses any whitespace variance so trafilatura's
     minor formatting drift doesn't fire spurious triggers."""
     normalized = " ".join(text.split())
@@ -209,49 +204,6 @@ async def _process_entry(entry: WatchEntry) -> None:
         ] + [new_result]
         finalize_market(s.market)
 
-    # Flagged seams — these log "skipped: no key" today, light up at D04/D09.
-    # We also emit dedicated activity events so D07's feed renders a line
-    # for each seam outcome (skipped vs published vs notified).
-    try:
-        published_url = await publish(s.market)
-    except Exception as e:
-        log.exception("publish seam raised: %s", e)
-        published_url = None
-    if published_url:
-        publish_status = "ok"
-    elif not settings.SENSO_API_KEY:
-        publish_status = "skipped:no_key"
-    elif not settings.SENSO_GEO_QUESTION_ID:
-        publish_status = "skipped:no_geo_question"
-    else:
-        publish_status = "skipped:idempotent_or_error"
-    _emit_activity(
-        "gauntlet_published",
-        vendor=entry.vendor,
-        payload={
-            "url": published_url,
-            "status": publish_status,
-        },
-    )
-
-    try:
-        await notify(GauntletDelta(
-            vendor=entry.vendor,
-            url=entry.url,
-            old_score=old_score,
-            new_score=new_score,
-            published_url=published_url,
-        ))
-        notify_status = "ok" if settings.COMPOSIO_API_KEY else "skipped:no_key"
-    except Exception as e:
-        log.exception("notify seam raised: %s", e)
-        notify_status = "error"
-    _emit_activity(
-        "gauntlet_notified",
-        vendor=entry.vendor,
-        payload={"status": notify_status},
-    )
-
     _emit_activity(
         "gauntlet_reaudit_done",
         vendor=entry.vendor,
@@ -259,7 +211,6 @@ async def _process_entry(entry: WatchEntry) -> None:
             "old_score": old_score,
             "new_score": new_score,
             "inflation_index": s.market.claim_inflation_index,
-            "published_url": published_url,
         },
     )
 

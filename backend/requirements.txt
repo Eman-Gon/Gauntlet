@@ -1,9 +1,6 @@
     #   anthropic
     #   anyio
     #   click
-    #   clickhouse-connect
-    #   composio
-    #   composio-client
     #   courlan
     #   dateparser
     #   fastapi
@@ -17,7 +14,6 @@
     #   pydantic
     #   pydantic-core
     #   pydantic-settings
-    #   pysher
     #   requests
     #   gauntlet
     #   sse-starlette
@@ -32,8 +28,6 @@
     #   watchfiles
     # via
     # via anthropic
-    # via clickhouse-connect
-    # via composio
     # via courlan
     # via dateparser
     # via fastapi
@@ -42,7 +36,6 @@
     # via lxml
     # via openai
     # via pydantic
-    # via pysher
     # via python-dateutil
     # via gauntlet
     # via tavily-python
@@ -56,10 +49,7 @@ babel==2.18.0
 certifi==2026.5.20
 charset-normalizer==3.4.7
 click==8.4.1
-clickhouse-connect==1.3.0
 colorama==0.4.6 ; sys_platform == 'win32'
-composio-client==1.39.0
-composio==0.13.1
 courlan==1.4.0
 dateparser==1.4.0
 distro==1.9.0
@@ -76,13 +66,11 @@ json-schema-to-pydantic==0.4.11
 justext==3.0.2
 lxml-html-clean==0.4.5
 lxml==6.1.1
-lz4==4.4.5
 openai==2.41.0
 orjson==3.11.9
 pydantic-core==2.46.4
 pydantic-settings==2.14.1
 pydantic==2.13.4
-pysher==1.0.8
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 pytz==2026.2
@@ -109,4 +97,3 @@ uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'c
 watchfiles==1.2.0
 websocket-client==1.9.0
 websockets==16.0
-zstandard==0.25.0

@@ -34,31 +34,12 @@ const STAGE_PRETTY: Record<string, { icon: string; label: (e: ActivityEvent) => 
   judge_premium: { icon: '↑', label: e => `escalated to premium${e.claim_id ? ` · ${shortClaim(e.claim_id)}` : ''}` },
   advise: { icon: '·', label: () => 'advise' },
   vendor_done: { icon: '✓', label: e => `${e.vendor ?? 'vendor'} done` },
-  gauntlet_published: { icon: '↗', label: e => describePublished(e) },
-  gauntlet_notified: { icon: '✉', label: e => describeNotified(e) },
   gauntlet_reaudit_done: { icon: '✓', label: e => describeReaudit(e) },
-  paid_fetch: { icon: '💰', label: e => `agent paid · ${(e.payload as Record<string,string>)?.category ?? 'verdicts'}` },
 }
 
 function shortClaim(id: string): string {
   if (id.length <= 10) return `claim ${id}`
   return `claim ${id.slice(0, 8)}…`
-}
-
-function describePublished(e: ActivityEvent): string {
-  const status = e.payload?.status as string | undefined
-  if (status === 'ok') return 'published to cited.md'
-  if (status === 'skipped:no_key') return 'publish skipped (no SENSO key)'
-  if (status === 'skipped:no_geo_question') return 'publish skipped (no geo_question_id)'
-  if (status?.startsWith('skipped')) return `publish skipped (${status.slice(8)})`
-  return 'publish attempted'
-}
-
-function describeNotified(e: ActivityEvent): string {
-  const status = e.payload?.status as string | undefined
-  if (status === 'ok') return 'notified via Composio'
-  if (status?.startsWith('skipped')) return 'notify skipped (no Composio key)'
-  return 'notify attempted'
 }
 
 function describeReaudit(e: ActivityEvent): string {
@@ -77,7 +58,6 @@ function accentFor(stage: string, escalated: boolean, muted: boolean): FeedLine[
   if (muted) return 'neutral'
   if (stage === 'gauntlet_trigger') return 'indigo'
   if (stage === 'gauntlet_reaudit_done') return 'good'
-  if (stage === 'gauntlet_published') return 'good'
   if (stage === 'judge_premium' || escalated) return 'warn'
   if (stage === 'vendor_done') return 'good'
   return 'neutral'
@@ -97,12 +77,8 @@ const MAX_LINES = 80
 
 export function ActivityFeed({
   apiBase,
-  onPublishedOk,
-  onPaidFetch,
 }: {
   apiBase: string
-  onPublishedOk: () => void
-  onPaidFetch: () => void
 }) {
   const [lines, setLines] = useState<FeedLine[]>([])
   const [connected, setConnected] = useState(false)
@@ -138,8 +114,6 @@ export function ActivityFeed({
             escalated: data.escalated,
           }
           setLines(prev => [line, ...prev].slice(0, MAX_LINES))
-          if (data.stage === 'gauntlet_published' && !muted) onPublishedOk()
-          if (data.stage === 'paid_fetch') onPaidFetch()
         } catch { /* ignore malformed */ }
       })
 
@@ -158,7 +132,7 @@ export function ActivityFeed({
       if (retryHandle) clearTimeout(retryHandle)
       esRef.current?.close()
     }
-  }, [apiBase, onPublishedOk, onPaidFetch])
+  }, [apiBase])
 
   return (
     <div style={{
