@@ -66,6 +66,7 @@ class Judgment(BaseModel):
 class RedFlag(BaseModel):
     """A language pattern in a claim that historically correlates with
     unsubstantiated marketing copy."""
+
     claim_id: str
     claim_excerpt: str
     pattern: str
@@ -74,6 +75,7 @@ class RedFlag(BaseModel):
 
 class ClusterGroup(BaseModel):
     """A group of similar claims across multiple vendors."""
+
     metric: str
     count: int
     vendors: list[str]
@@ -195,3 +197,28 @@ class VetAccepted(BaseModel):
     stream_url: str
     results_url: str
     reliability_url: str
+
+
+# ════════════════════════════════════════════════════════════════
+#  Shopping Agent schemas
+# ════════════════════════════════════════════════════════════════
+
+
+class ProductResult(BaseModel):
+    name: str
+    price: str
+    pros: list[str] = Field(default_factory=list)
+    cons: list[str] = Field(default_factory=list)
+    source_url: str | None = None
+
+
+class ShopSearchRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+
+
+class ShopSearchResponse(BaseModel):
+    query: str
+    agent_name: str | None = None
+    agent_id: str | None = None
+    reliability_score: float | None = None
+    products: list[ProductResult] = Field(default_factory=list)
