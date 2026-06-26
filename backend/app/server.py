@@ -616,3 +616,49 @@ async def buyer_purchase(req: PurchaseRequest) -> dict:
         "receipt_url": receipt,
         "test_mode": True,
     }
+
+
+# ════════════════════════════════════════════════════════════════
+#  Exa search endpoint
+# ════════════════════════════════════════════════════════════════
+
+
+class ExaSearchRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    num_results: int = Field(default=5, ge=1, le=10)
+
+
+@app.post("/exa/search")
+async def exa_search(req: ExaSearchRequest) -> dict:
+    """Search Exa for products or claim evidence.
+    Falls back to mock data when EXA_API_KEY is absent."""
+    from app.exa_client import search as exa_search_fn
+
+    return await exa_search_fn(req.query, req.num_results)
+
+
+class ExtractRequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    search_texts: list[dict] = Field(default_factory=list)
+
+
+@app.post("/shop/extract")
+async def shop_extract(req: ExtractRequest) -> dict:
+    """Extract structured products from search result text."""
+    from app.product_extraction import extract_products
+
+    products = await extract_products(req.query, req.search_texts)
+    return {"products": [p.model_dump(mode="json") for p in products]}
+
+
+class AuditClaimsRequest(BaseModel):
+    products: list[dict] = Field(default_factory=list)
+
+
+@app.post("/shop/audit-claims")
+async def shop_audit_claims(req: AuditClaimsRequest) -> dict:
+    """Resolve PENDING claim verdicts via hunt + judge pipeline."""
+    from app.claim_audit import audit_claims
+
+    products = await audit_claims(req.products)
+    return {"products": products}

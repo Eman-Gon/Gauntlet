@@ -210,6 +210,7 @@ class ProductResult(BaseModel):
     pros: list[str] = Field(default_factory=list)
     cons: list[str] = Field(default_factory=list)
     source_url: str | None = None
+    claims: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ShopSearchRequest(BaseModel):
