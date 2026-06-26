@@ -355,16 +355,19 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/debug/config")
 async def debug_config() -> dict:
-    from app.clients import _use_gmi
+    from app.clients import _effective_gmi_base_url, _use_gmi
     from app.config import settings as cfg
 
     return {
         "use_gmi": _use_gmi(),
+        "gmi_base_url": _effective_gmi_base_url() or "(not set)",
         "cheap_model": cfg.CHEAP_MODEL,
         "premium_model": cfg.PREMIUM_MODEL,
         "anthropic_key_set": bool(cfg.ANTHROPIC_API_KEY),
-        "gmi_key_set": bool(cfg.GMI_API_KEY),
+        "gmi_key_set": bool(cfg.GMI_API_KEY or cfg.GMI_MAAS_API_KEY),
         "tavily_key_set": bool(cfg.TAVILY_API_KEY),
+        "exa_key_set": bool(cfg.EXA_API_KEY),
+        "stripe_key_set": bool(cfg.STRIPE_TEST_KEY),
     }
 
 
@@ -601,7 +604,9 @@ async def chat_completions(req: _ChatCompletionRequest) -> dict:
                     f"Probes: {report.passed} PROVEN · {report.inconsistent} INCONSISTENT · {report.failed} FAILED",
                 ]
                 if report.harder_gauntlet:
-                    lines.append("\n⚠  Harder gauntlet applied (prior failure on record).")
+                    lines.append(
+                        "\n⚠  Harder gauntlet applied (prior failure on record)."
+                    )
                 for cat, bd in report.category_breakdown.items():
                     lines.append(
                         f"{cat}: {bd.get('verdict', 'N/A')} "
@@ -615,11 +620,12 @@ async def chat_completions(req: _ChatCompletionRequest) -> dict:
     if any(kw in low for kw in ("vet", "probe", "audit", "evaluate", "test")):
         url_match = re.search(r"(https?://[^\s]+)", user_msg)
         name_match = re.search(
-            r"(?:vet|probe|audit|evaluate|test)\s+([^@\s]+?)(?:\s+at\s+|\s+https?://|$)", low
+            r"(?:vet|probe|audit|evaluate|test)\s+([^@\s]+?)(?:\s+at\s+|\s+https?://|$)",
+            low,
         )
         if url_match:
             endpoint = url_match.group(1)
-            agent_name = (name_match.group(1).strip() if name_match else "unknown-agent")
+            agent_name = name_match.group(1).strip() if name_match else "unknown-agent"
             agent_id = re.sub(r"[^a-z0-9_\-]", "-", agent_name).strip("-") or "unknown"
 
             from app.schemas import TargetAgent
@@ -666,7 +672,9 @@ async def chat_completions(req: _ChatCompletionRequest) -> dict:
                     f"- **{latest.get('name', aid)}** (`{aid}`) — {pct}% reliable"
                 )
         if rows:
-            content = "**Vetted Agents**\n\n" + "\n".join(rows) + "\n\nFull JSON: GET /agents"
+            content = (
+                "**Vetted Agents**\n\n" + "\n".join(rows) + "\n\nFull JSON: GET /agents"
+            )
         else:
             content = "No agents vetted yet. Say 'vet <name> at <url>' to start."
         return _completion(content)
@@ -727,6 +735,34 @@ async def buyer_search(req: ShopSearchRequest) -> ShopSearchResponse:
     return await search_and_vet(req.query)
 
 
+@app.get("/buyer/search/stream")
+async def buyer_search_stream(request: Request) -> EventSourceResponse:
+    """SSE stream of buyer search progress events (searching → extracting → auditing → done)."""
+    from app.buyer_events import get_bus
+
+    bus = get_bus()
+    queue = bus.subscribe()
+
+    async def gen():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    yield {"event": "ping", "data": ""}
+                    continue
+                yield {
+                    "event": "progress",
+                    "data": event.sse_data(),
+                }
+        finally:
+            bus.unsubscribe(queue)
+
+    return EventSourceResponse(gen())
+
+
 class PurchaseRequest(BaseModel):
     amount_cents: int = Field(..., gt=0, description="Amount in cents (500 = $5.00)")
     currency: str = "usd"
@@ -737,10 +773,10 @@ class PurchaseRequest(BaseModel):
 async def buyer_purchase(req: PurchaseRequest) -> dict:
     """Create a Stripe test-mode PaymentIntent and confirm it.
 
-    Uses the STRIPE_TEST_KEY env var. Test cards always succeed in test mode.
+    Uses STRIPE_TEST_KEY from .env (test secret key, sk_test_...).
+    Test cards always succeed in test mode.
     Returns the PaymentIntent status, id, and receipt.
     """
-    import os
     import sys
     from pathlib import Path
 
@@ -757,7 +793,9 @@ async def buyer_purchase(req: PurchaseRequest) -> dict:
         )
 
     try:
-        client = StripeTestClient()
+        from app.config import settings
+
+        client = StripeTestClient(api_key=settings.STRIPE_TEST_KEY)
         pi = client.purchase(
             amount=req.amount_cents,
             currency=req.currency,

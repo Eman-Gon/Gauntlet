@@ -11,7 +11,6 @@ Falls back to mock data when EXA_API_KEY is absent (always-runs contract).
 from __future__ import annotations
 
 import json
-import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -58,7 +57,9 @@ def _mock_search(query: str, num_results: int = 5) -> list[dict]:
 
 async def search(query: str, num_results: int = 5) -> dict:
     """Search Exa. Returns {"results": [...], "mock": bool}."""
-    key = os.environ.get("EXA_API_KEY", "")
+    from app.config import settings
+
+    key = settings.EXA_API_KEY
 
     if not key:
         return {"results": _mock_search(query, num_results), "mock": True}
@@ -86,5 +87,10 @@ async def search(query: str, num_results: int = 5) -> dict:
                 }
             )
         return {"results": results, "mock": False}
-    except (HTTPError, URLError, Exception):
+    except (HTTPError, URLError, Exception) as exc:
+        import logging
+
+        logging.getLogger("gauntlet.exa").warning(
+            "Exa search failed, using mock: %s", exc
+        )
         return {"results": _mock_search(query, num_results), "mock": True}

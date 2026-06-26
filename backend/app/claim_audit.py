@@ -10,18 +10,20 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
+import logging
 import random
+
+from app.config import settings
+
+log = logging.getLogger("gauntlet.claims")
 
 
 async def audit_claims(products: list[dict]) -> list[dict]:
     """Resolve PENDING claims to verdicts. Runs hunt+judge per claim.
     Without Exa+LLM keys, assigns mock verdicts instantly."""
-    key = os.environ.get("EXA_API_KEY", "")
+    has_exa = bool(settings.EXA_API_KEY)
     has_llm = bool(
-        os.environ.get("GMI_API_KEY")
-        or os.environ.get("CHEAP_API_KEY")
-        or os.environ.get("ANTHROPIC_API_KEY")
+        settings.GMI_API_KEY or settings.CHEAP_API_KEY or settings.ANTHROPIC_API_KEY
     )
 
     for product in products:
@@ -29,7 +31,7 @@ async def audit_claims(products: list[dict]) -> list[dict]:
         for claim in claims:
             if claim.get("verdict") != "PENDING":
                 continue
-            if key and has_llm:
+            if has_exa and has_llm:
                 await _audit_claim_live(claim)
             else:
                 _audit_claim_mock(claim)

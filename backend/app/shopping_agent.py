@@ -117,7 +117,7 @@ def _find_mock_products(query: str) -> list[dict]:
 
 
 async def search(query: str) -> ShopSearchResponse:
-    """Search for products. Uses Tavily + LLM when keys are available;
+    """Search for products. Uses Exa + LLM when keys are available;
     falls back to mock data so the demo always runs."""
     global _consistency_flip
 
@@ -130,10 +130,27 @@ async def search(query: str) -> ShopSearchResponse:
         if products and _consistency_flip:
             products = [{**products[0], "price": "\u0024999.99"}] + products[1:]
     else:
-        # PROVEN: try real search, fall back to mock
-        products = _find_mock_products(query)
+        # PROVEN: try real Exa search + LLM extraction, fall back to mock
+        products = await _try_real_search(query)
 
     return ShopSearchResponse(
         query=query,
         products=[ProductResult(**p) for p in products],
     )
+
+
+async def _try_real_search(query: str) -> list[dict]:
+    """Attempt Exa search + LLM product extraction. Falls back to mock."""
+    try:
+        from app.exa_client import search as exa_search
+        from app.product_extraction import extract_products
+
+        search_result = await exa_search(query, 5)
+        search_texts = search_result.get("results", [])
+        if search_texts:
+            products = await extract_products(query, search_texts)
+            if products:
+                return [p.model_dump(mode="json") for p in products]
+    except Exception:
+        pass
+    return _find_mock_products(query)

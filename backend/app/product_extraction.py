@@ -4,12 +4,17 @@ Uses the cheap-tier LLM to parse raw Exa search text into:
   [{name, price, claims: [{text, verdict: PENDING}], source_url}, ...]
 
 Claims default to PENDING verdict -- the claim audit pipeline resolves them.
-Falls back to mock catalog when no LLM key is available."""
+When LLM is unavailable or fails, falls back to showing raw search results
+as product cards so users can see live data even without LLM keys."""
 
 from __future__ import annotations
 
+import logging
+
 from app.schemas import ProductResult
 from app.shopping_agent import _find_mock_products
+
+log = logging.getLogger("gauntlet.extraction")
 
 
 async def extract_products(
@@ -36,9 +41,15 @@ async def extract_products(
             and not settings.GMI_API_KEY
             and not settings.ANTHROPIC_API_KEY
         ):
+            log.info("No LLM keys configured — using raw search results")
             raise RuntimeError("no LLM keys")
 
         prompt = _build_extraction_prompt(query, search_texts)
+        log.info(
+            "Extracting products via LLM for query=%r (%d search results)",
+            query,
+            len(search_texts),
+        )
         result = await chat(
             "cheap",
             [
@@ -50,11 +61,18 @@ async def extract_products(
         )
         products = _parse_extraction_response(result.text)
         if products:
+            log.info("LLM extracted %d products for query=%r", len(products), query)
             return products
-    except Exception:
-        pass
+        log.warning("LLM returned no parseable products, falling back")
+    except Exception as exc:
+        log.warning("LLM extraction failed for query=%r: %s", query, exc)
 
-    # Fallback: mock catalog
+    # Fallback: show raw search results as product cards
+    if search_texts:
+        log.info("Falling back to raw search results (%d items)", len(search_texts))
+        return _raw_results_as_products(search_texts)
+
+    # Last resort: mock catalog
     mock = _find_mock_products(query)
     return [
         ProductResult(
@@ -125,6 +143,39 @@ def _parse_extraction_response(response: str) -> list[ProductResult]:
                 cons=[],
                 source_url=str(item.get("source_url", "")),
                 claims=claims if isinstance(claims, list) else [],
+            )
+        )
+    return products
+
+
+def _raw_results_as_products(search_texts: list[dict]) -> list[ProductResult]:
+    """Convert raw Exa search results into product cards when LLM extraction
+    is unavailable. Each search result becomes a product card with the title
+    as name, snippets as claims, and URL as source."""
+    products: list[ProductResult] = []
+    seen_urls: set[str] = set()
+    for r in search_texts:
+        url = r.get("url", "")
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        title = r.get("title", "Untitled")
+        text = r.get("text", "")
+        # Extract checkable claims from the snippet text
+        claims: list[dict] = []
+        if text:
+            sentences = [
+                s.strip() for s in text.replace("\n", ". ").split(".") if s.strip()
+            ]
+            claims = [{"text": s[:200], "verdict": "PENDING"} for s in sentences[:5]]
+        products.append(
+            ProductResult(
+                name=title[:120],
+                price="$?",
+                pros=[],
+                cons=[],
+                source_url=url,
+                claims=claims,
             )
         )
     return products

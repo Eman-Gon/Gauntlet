@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { API_BASE } from "../lib/api";
 
 /* ShopperPanel -- search-first buyer interface. Search, table, claims, buy. */
 
@@ -30,11 +31,6 @@ interface PurchaseResult {
   receipt_url: string;
 }
 type Phase = "idle" | "loading" | "results" | "purchasing" | "purchased";
-
-const API_BASE = (
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
-    ?.VITE_API_URL || ""
-).replace(/\/+$/, "");
 
 const VERDICT_LABELS: Record<string, string> = {
   SUPPORTED: "backed",
@@ -81,23 +77,38 @@ export function ShopperPanel() {
   const [expandedAgent, setExpandedAgent] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = useCallback(async () => {
     const q = query.trim();
     if (!q) return;
     setPhase("loading");
+    setProgress("Discovering shopping agents…");
     setError(null);
     setResult(null);
     setSelectedProduct(null);
     setExpandedClaims(new Set());
     setPurchaseResult(null);
+
+    // Connect to SSE progress stream
+    const evtSource = new EventSource(API_BASE + "/buyer/search/stream");
+    evtSource.addEventListener("progress", (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        setProgress(data.message || data.stage);
+      } catch {}
+    });
+    evtSource.addEventListener("ping", () => {});
+    evtSource.onerror = () => {}; // ignore connection errors
+
     try {
       const resp = await fetch(API_BASE + "/buyer/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q }),
       });
+      evtSource.close();
       if (!resp.ok)
         throw new Error(
           (await resp.json().catch(() => ({ detail: resp.statusText })))
@@ -106,6 +117,7 @@ export function ShopperPanel() {
       setResult(await resp.json());
       setPhase("results");
     } catch (e: unknown) {
+      evtSource.close();
       setError(e instanceof Error ? e.message : "Search failed");
       setPhase("results");
     }
@@ -272,7 +284,7 @@ export function ShopperPanel() {
             }}
           >
             <div style={{ fontSize: 14, color: "var(--text)" }}>
-              Discovering shopping agents...
+              {progress || "Discovering shopping agents…"}
             </div>
             <div style={{ fontSize: 12, color: "var(--muted)" }}>
               Searching products and auditing claims

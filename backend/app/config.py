@@ -12,7 +12,6 @@ from typing import Any
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -51,11 +50,16 @@ class Settings(BaseSettings):
         if not isinstance(data, dict):
             return data
         _float_fields = {
-            "CHEAP_INPUT_PER_MTOK", "CHEAP_OUTPUT_PER_MTOK",
-            "CHEAP_ATTEMPT_COST_USD", "X402_PRICE_USD",
-            "MEDIUM_INPUT_PER_MTOK", "MEDIUM_OUTPUT_PER_MTOK",
-            "JUDGE_CONFIDENCE_THRESHOLD", "SCRAPE_TIMEOUT_S",
-            "LLM_TIMEOUT_S", "CHEAP_LLM_TIMEOUT_S",
+            "CHEAP_INPUT_PER_MTOK",
+            "CHEAP_OUTPUT_PER_MTOK",
+            "CHEAP_ATTEMPT_COST_USD",
+            "X402_PRICE_USD",
+            "MEDIUM_INPUT_PER_MTOK",
+            "MEDIUM_OUTPUT_PER_MTOK",
+            "JUDGE_CONFIDENCE_THRESHOLD",
+            "SCRAPE_TIMEOUT_S",
+            "LLM_TIMEOUT_S",
+            "CHEAP_LLM_TIMEOUT_S",
         }
         return {k: v for k, v in data.items() if not (k in _float_fields and v == "")}
 
@@ -84,6 +88,9 @@ class Settings(BaseSettings):
     MEMORY_BACKEND: str = "local"
     HYDRADB_URL: str = ""
     HYDRADB_API_KEY: str = ""
+
+    # ── stripe (test-mode purchases) ─────────────────────────────────────────
+    STRIPE_TEST_KEY: str = ""
 
     # ── gauntlet loop ────────────────────────────────────────────────────────
     # WATCH_ENABLED=false disables the autonomous watcher (useful for local

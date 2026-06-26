@@ -31,7 +31,6 @@ from openai import AsyncOpenAI
 
 from app.config import cheap_effective_api_key, settings
 
-
 log = logging.getLogger("gauntlet.clients")
 
 
@@ -110,10 +109,19 @@ def _gmi_client() -> AsyncOpenAI:
     global _gmi_client_oai
     url = _effective_gmi_base_url()
     if _gmi_client_oai is None or str(_gmi_client_oai.base_url) != url:
+        import httpx
+
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=2, max_connections=10),
+            http2=False,
+            trust_env=True,
+        )
         _gmi_client_oai = AsyncOpenAI(
             base_url=url,
             api_key=_effective_gmi_key(),
             max_retries=0,
+            http_client=http_client,
         )
     return _gmi_client_oai
 
@@ -123,7 +131,10 @@ def cheap_client() -> AsyncOpenAI:
     if _use_gmi():
         return _gmi_client()
     global _cheap_client_oai
-    if _cheap_client_oai is None or _cheap_client_oai.base_url != settings.CHEAP_BASE_URL:
+    if (
+        _cheap_client_oai is None
+        or _cheap_client_oai.base_url != settings.CHEAP_BASE_URL
+    ):
         _cheap_client_oai = AsyncOpenAI(
             base_url=settings.CHEAP_BASE_URL,
             api_key=cheap_effective_api_key(),
@@ -166,6 +177,46 @@ def _inject_no_think(messages: list[dict[str, str]]) -> list[dict[str, str]]:
     return out
 
 
+async def _gmi_chat(
+    model: str,
+    messages: list[dict[str, str]],
+    *,
+    max_tokens: int,
+    temperature: float,
+    timeout: float,
+) -> ChatResult:
+    """Direct httpx call to GMI — bypasses the OpenAI SDK entirely.
+    Uses the same approach as a working requests.post() test."""
+    import httpx
+
+    url = _effective_gmi_base_url().rstrip("/") + "/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {_effective_gmi_key()}",
+    }
+    body = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        resp = await client.post(url, headers=headers, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+    choice = data["choices"][0] if data.get("choices") else {}
+    msg = choice.get("message", {})
+    text = msg.get("content", "") or ""
+    usage = data.get("usage", {})
+    return ChatResult(
+        text=text,
+        tokens_in=usage.get("prompt_tokens", 0),
+        tokens_out=usage.get("completion_tokens", 0),
+        model=model,
+        tier="cheap",
+    )
+
+
 async def _openai_chat(
     client: AsyncOpenAI,
     model: str,
@@ -177,16 +228,23 @@ async def _openai_chat(
     timeout: float,
 ) -> ChatResult:
     """Shared OpenAI-SDK call path."""
-    resp = await asyncio.wait_for(
-        client.chat.completions.create(
-            model=model,
-            messages=messages,  # type: ignore[arg-type]
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=timeout,
-        ),
-        timeout=timeout + 0.5,
-    )
+    log.debug("chat(%s) -> %s @ %s", tier, model, str(client.base_url)[:80])
+    try:
+        resp = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=model,
+                messages=messages,  # type: ignore[arg-type]
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=timeout,
+            ),
+            timeout=timeout + 0.5,
+        )
+    except Exception:
+        log.error(
+            "chat(%s) FAILED model=%r base_url=%r", tier, model, str(client.base_url)
+        )
+        raise
     msg = resp.choices[0].message if resp.choices else None
     text = (msg.content or "") if msg else ""
     usage = resp.usage
@@ -224,6 +282,14 @@ async def chat(
     if tier == "cheap":
         model = settings.CHEAP_MODEL
         msgs = _inject_no_think(messages) if _needs_no_think(model) else messages
+        if _use_gmi():
+            return await _gmi_chat(
+                model,
+                msgs,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                timeout=timeout,
+            )
         return await _openai_chat(
             cheap_client(),
             model,
@@ -236,11 +302,9 @@ async def chat(
 
     # premium — GMI if configured, else direct Anthropic native
     if _use_gmi():
-        return await _openai_chat(
-            _gmi_client(),
+        return await _gmi_chat(
             settings.PREMIUM_MODEL,
             messages,
-            tier="premium",
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=timeout,
