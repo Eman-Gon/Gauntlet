@@ -248,9 +248,13 @@ async def _openai_chat(
     max_tokens: int,
     temperature: float,
     timeout: float,
+    disable_thinking: bool = False,
 ) -> ChatResult:
     """Shared OpenAI-SDK call path."""
     log.debug("chat(%s) -> %s @ %s", tier, model, str(client.base_url)[:80])
+    extra: dict = {}
+    if disable_thinking:
+        extra["extra_body"] = {"enable_thinking": False}
     try:
         resp = await asyncio.wait_for(
             client.chat.completions.create(
@@ -259,6 +263,7 @@ async def _openai_chat(
                 max_tokens=max_tokens,
                 temperature=temperature,
                 timeout=timeout,
+                **extra,
             ),
             timeout=timeout + 0.5,
         )
@@ -303,7 +308,8 @@ async def chat(
 
     if tier == "cheap":
         model = settings.CHEAP_MODEL
-        msgs = _inject_no_think(messages) if _needs_no_think(model) else messages
+        no_think = _needs_no_think(model)
+        msgs = _inject_no_think(messages) if no_think else messages
         if _use_gmi():
             return await _gmi_chat(
                 model,
@@ -320,6 +326,7 @@ async def chat(
             max_tokens=max_tokens,
             temperature=temperature,
             timeout=timeout,
+            disable_thinking=no_think,
         )
 
     # premium — GMI if configured, else direct Anthropic native

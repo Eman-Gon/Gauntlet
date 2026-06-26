@@ -272,16 +272,6 @@ Memory defaults to local JSON. HydraDB (`HYDRADB_URL`, `HYDRADB_API_KEY`) is an 
 
 ---
 
-## What Is Reused vs New
-
-**Reused (from Receipts / Gauntlet, June 10–12):**
-- `pipeline/` — ingest, extract, hunt, judge, advise, orchestrator (re-pointed)
-- `clients.py` — LLM cascade, cost_usd
-- `telemetry.py` — TelemetryBus, SSE, JSONL
-- `cache.py` — hash-keyed run cache
-- `server.py` — FastAPI shell, SSE machinery, legacy `/audit` surface
-- `frontend/` — glass tokens, SSE subscription pattern, Next.js app shell
-
 **New (built at the Beta Fund hackathon, June 26):**
 - `target_client.py` — black-box agent adapter
 - `probes/` — probe battery definitions and runner

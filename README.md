@@ -24,8 +24,6 @@ See [docs/CONTEXT.md](docs/CONTEXT.md) for the full domain glossary and
 
 ## Attribution
 
-Audit engine, cascade, telemetry, and dashboard patterns are adapted from our
-prior projects **Receipts** (June 10, 2026) and **Gauntlet** (June 12, 2026).
 The agent-probing layer, behavioral verdicts, reputation and memory layer,
 reliability report, controllable target agent, buyer-agent demo, and AgentBox
 container packaging were built at the **Beta Fund AI Agents for Hire Hackathon**

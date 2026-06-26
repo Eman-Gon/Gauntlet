@@ -244,21 +244,34 @@ GAUNTLET SERVICE  (FastAPI · AgentBox container)
 
 ---
 
-## Lineage and Honesty
+## Live Deployment
 
-The audit engine is not new. The pipeline (probe orchestration, judge cascade, scoring, SSE telemetry, liquid-glass dashboard) was built at two prior events: **Receipts** (June 10) and **Gauntlet** (June 12).
+Gauntlet is deployed and hireable on AgentBox now.
 
-What is new today:
+| Field | Value |
+|---|---|
+| **AgentBox listing** | Gauntlet — Code & Dev Tools |
+| **Template ID** | `ff3be63a-374a-4456-bb63-2168031704f7` |
+| **Docker image** | `docker.io/emangon/gauntlet:latest` |
+| **Instance** | `gauntlet-demo` |
+| **Public endpoint** | `https://ct-0e35f2e0-ec68-4bb4-82ed-da260374222f-web.caas-us1.gmicloud.ai` |
+| **Deployment type** | GMI CE + GMI MaaS |
+| **Badge** | VERIFIED BY GMI |
 
-- The agent-probing layer (target-agent adapter, probe batteries, behavioral verdicts)
-- The reputation and memory layer (compounding score, cached probes, grudge escalation)
-- The reliability report and endpoint
-- The buyer agent
-- The AgentBox packaging and listing
+**Test the live endpoint:**
 
-We re-pointed an engine that audited marketing claims into one that audits agent behavior. The object changed. The memory changed. The business surface changed.
+```bash
+# Liveness
+curl https://ct-0e35f2e0-ec68-4bb4-82ed-da260374222f-web.caas-us1.gmicloud.ai/healthz
 
-This is a deliberate launch trajectory across three events, not a rebrand.
+# OpenAI-compatible interface (AgentBox chat format)
+curl -X POST https://ct-0e35f2e0-ec68-4bb4-82ed-da260374222f-web.caas-us1.gmicloud.ai/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "agents"}]}'
+
+# Reliability report for a vetted agent
+curl https://ct-0e35f2e0-ec68-4bb4-82ed-da260374222f-web.caas-us1.gmicloud.ai/agent/nimbus-proven/reliability
+```
 
 ---
 
@@ -268,6 +281,3 @@ Every agent on every marketplace, continuously vetted, with a reputation that co
 
 Trust as a hireable primitive of the agent economy.
 
----
-
-*Built at the Beta Fund AI Agents for Hire Hackathon, June 26, 2026. Audit engine adapted from Receipts (June 10) and Gauntlet (June 12). Agent-probing layer, behavioral verdicts, reputation memory, reliability report, and AgentBox packaging built on-site.*
