@@ -997,7 +997,7 @@ function GauntletWorkbench({
             onClick={onBack}
             style={{ height: 36, fontSize: 12 }}
           >
-            Gauntlet view
+            Back to shop
           </button>
         </div>
 
@@ -1516,17 +1516,12 @@ function GauntletWorkbench({
           </div>
         </div>
       </div>
-
-      {/* ShopperPanel -- buyer agent: search, vet, buy */}
-      <div style={{ maxWidth: 1180, margin: "24px auto", padding: "0 28px" }}>
-        <ShopperPanel />
-      </div>
     </div>
   );
 }
 
 export default function App() {
-  const [view, setView] = useState<"gauntlet" | "gauntlet">("gauntlet");
+  const [view, setView] = useState<"shop" | "vet">("shop");
   const [customText, setCustomText] = useState("");
   const [customError, setCustomError] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -1757,12 +1752,63 @@ export default function App() {
     r.readAsText(f);
   };
 
-  if (view === "gauntlet") {
+  if (view === "shop") {
     return (
-      <GauntletWorkbench
-        apiBase={API_BASE}
-        onBack={() => setView("gauntlet")}
-      />
+      <div style={{ minHeight: "100vh" }}>
+        {/* Top bar with nav */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "16px 28px",
+            borderBottom: "1px solid var(--border)",
+            background: "rgba(7,7,13,0.85)",
+            backdropFilter: "blur(12px)",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: "var(--accent-grad)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#fff",
+              }}
+            >
+              G
+            </div>
+            <span
+              style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}
+            >
+              Gauntlet
+            </span>
+          </div>
+          <button
+            onClick={() => setView("vet")}
+            className="pill"
+            style={{ height: 34, fontSize: 12 }}
+          >
+            Vet an agent
+          </button>
+        </div>
+        <ShopperPanel />
+      </div>
+    );
+  }
+
+  if (view === "vet") {
+    return (
+      <GauntletWorkbench apiBase={API_BASE} onBack={() => setView("shop")} />
     );
   }
 
@@ -1877,7 +1923,7 @@ export default function App() {
 
           <div className="reveal-up d-4" style={{ marginBottom: 18 }}>
             <button
-              onClick={() => setView("gauntlet")}
+              onClick={() => setView("shop")}
               className="pill"
               style={{ height: 40, fontSize: 13, padding: "0 22px" }}
             >
@@ -2125,11 +2171,6 @@ export default function App() {
               ))}
             </div>
           )}
-
-          {/* ShopperPanel -- buyer agent: search products, vet agents, buy with Stripe */}
-          <div style={{ marginTop: 24 }}>
-            <ShopperPanel />
-          </div>
         </main>
       </div>
 
