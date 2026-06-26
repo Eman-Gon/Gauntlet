@@ -12,6 +12,6 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY backend /app/backend
 COPY CLAUDE.md README.md .env.example /app/
 
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["uvicorn", "app.server:app", "--app-dir", "backend", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.server:app", "--app-dir", "backend", "--host", "0.0.0.0", "--port", "8080"]

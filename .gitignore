@@ -10,6 +10,7 @@ node_modules/
 dist/
 build/
 .vite/
+.next/
 *.log
 backend/app/caches/
 backend/app/logs/

@@ -43,7 +43,7 @@ const VERDICT_LABELS: Record<string, string> = {
   PENDING: "auditing...",
 };
 
-function sc(score: number | null) {
+function scoreColor(score: number | null) {
   if (score === null) return "var(--muted)";
   if (score >= 0.8) return "var(--verdict-good)";
   if (score >= 0.6) return "var(--verdict-warn)";
@@ -501,8 +501,8 @@ export function ShopperPanel() {
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  background: sc(result.reliability_score),
-                  boxShadow: "0 0 6px " + sc(result.reliability_score),
+                  background: scoreColor(result.reliability_score),
+                  boxShadow: "0 0 6px " + scoreColor(result.reliability_score),
                 }}
               />
               <span style={{ fontSize: 12, color: "var(--text-2)" }}>
@@ -513,7 +513,7 @@ export function ShopperPanel() {
                   fontSize: 12,
                   fontWeight: 700,
                   fontFamily: "var(--font-mono)",
-                  color: sc(result.reliability_score),
+                  color: scoreColor(result.reliability_score),
                 }}
               >
                 {result.reliability_score !== null
@@ -561,7 +561,7 @@ export function ShopperPanel() {
               style={{
                 fontFamily: "var(--font-mono)",
                 fontWeight: 700,
-                color: sc(result.reliability_score),
+                color: scoreColor(result.reliability_score),
               }}
             >
               {result.reliability_score !== null
