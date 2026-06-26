@@ -28,8 +28,8 @@ from pydantic import BaseModel, Field
 from sse_starlette import EventSourceResponse
 
 from app import gauntlet_watch, test_vendor
-from app.telemetry import TelemetryBus
 from app.schemas import TelemetryEvent, VetAccepted, VetRequest
+from app.telemetry import TelemetryBus
 
 
 @asynccontextmanager
@@ -187,6 +187,41 @@ async def agent_reliability(agent_id: str) -> Any:
     return orjson.loads(orjson.dumps(report.model_dump(mode="json")))
 
 
+@app.get("/agents")
+async def agent_directory(q: str | None = None) -> list[dict]:
+    """Marketplace directory: all vetted agents, sorted by reliability.
+
+    This is the programmatic AgentBox — every agent Gauntlet vets
+    automatically appears here. Other agents call this to discover
+    candidates before calling /agent/{id}/reliability to verify.
+    """
+    from app.reputation import _load
+
+    store = _load()
+    agents: list[dict] = []
+    for agent_id, data in store.items():
+        latest = data.get("latest")
+        if not latest:
+            continue
+        entry = {
+            "agent_id": agent_id,
+            "name": latest.get("name", agent_id),
+            "reliability_score": latest.get("reliability_score", 0),
+            "failed": latest.get("failed", 0),
+            "endpoint": latest.get("endpoint", ""),
+            "last_vetted_at": latest.get("last_vetted_at"),
+        }
+        if (
+            q
+            and q.lower() not in entry["name"].lower()
+            and q.lower() not in agent_id.lower()
+        ):
+            continue
+        agents.append(entry)
+    agents.sort(key=lambda a: a["reliability_score"], reverse=True)
+    return agents
+
+
 @app.get("/agent/{agent_id}/history")
 async def agent_history(agent_id: str) -> Any:
     """Reputation memory: prior reports plus score/category deltas."""
@@ -229,7 +264,13 @@ async def agent_badge(agent_id: str) -> Response:
         pct = round(report.reliability_score * 100)
         label = "Gauntlet"
         value = f"{pct}% reliable"
-        color = "#22c55e" if pct >= 80 and report.failed == 0 else "#f59e0b" if pct >= 60 else "#ef4444"
+        color = (
+            "#22c55e"
+            if pct >= 80 and report.failed == 0
+            else "#f59e0b"
+            if pct >= 60
+            else "#ef4444"
+        )
 
     label_w = 68
     value_w = max(92, 8 * len(value) + 18)
@@ -296,7 +337,12 @@ async def results(run_id: str) -> Any:
     if partial is not None:
         return orjson.loads(orjson.dumps(partial.model_dump(mode="json")))  # type: ignore[attr-defined]
 
-    return {"category": "", "vendors": [], "claim_inflation_index": 0.0, "telemetry_summary": {}}
+    return {
+        "category": "",
+        "vendors": [],
+        "claim_inflation_index": 0.0,
+        "telemetry_summary": {},
+    }
 
 
 @app.get("/healthz")
@@ -308,6 +354,7 @@ async def healthz() -> dict[str, str]:
 async def debug_config() -> dict:
     from app.clients import _use_gmi
     from app.config import settings as cfg
+
     return {
         "use_gmi": _use_gmi(),
         "cheap_model": cfg.CHEAP_MODEL,
@@ -364,6 +411,7 @@ async def gauntlet_status() -> dict:
 # D05 — x402 verdict endpoint
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.get("/api/market/{category}/verdicts")
 async def market_verdicts(
     category: str,
@@ -372,8 +420,13 @@ async def market_verdicts(
 ) -> Any:
     """Paywalled verdict endpoint. Returns HTTP 402 + quote until payment is
     proved via X-Payment header. Passes through in demo mode (no wallet set)."""
-    from app.x402 import build_quote, parse_payment_header, verify_payment, demo_hash_for
     from app.config import settings as cfg
+    from app.x402 import (
+        build_quote,
+        demo_hash_for,
+        parse_payment_header,
+        verify_payment,
+    )
 
     payment_header = request.headers.get("X-Payment") if request else None
     txn_hash = parse_payment_header(payment_header)
@@ -393,6 +446,7 @@ async def market_verdicts(
         # Demo mode — accept a deterministic hash or no header at all
         if txn_hash:
             from app.x402 import _mark_used
+
             _mark_used(txn_hash)
 
     # Fetch live market result from gauntlet state
@@ -407,7 +461,8 @@ async def market_verdicts(
             claims = vendor.get("claims", [])
             claim_map = {c["claim_id"]: c for c in claims}
             filtered = [
-                j for j in judgments
+                j
+                for j in judgments
                 if claim_map.get(j["claim_id"], {}).get("claim_type", "") in intent_cats
             ]
             if filtered:
@@ -421,7 +476,10 @@ async def market_verdicts(
         TelemetryEvent(
             stage="paid_fetch",
             vendor=None,
-            payload={"category": category, "txn_hash": txn_hash or demo_hash_for(category)},
+            payload={
+                "category": category,
+                "txn_hash": txn_hash or demo_hash_for(category),
+            },
         )
     )
 
@@ -435,10 +493,6 @@ async def market_verdicts(
 async def market_status(category: str, job_id: str) -> Any:
     """Stub for buyer agent polling. Returns 'complete' for the live loop."""
     return {"status": "complete", "category": category}
-
-
-
-
 
 
 @app.get("/activity/stream")
@@ -469,3 +523,96 @@ async def activity_stream(request: Request) -> EventSourceResponse:
     return EventSourceResponse(gen())
 
 
+# ════════════════════════════════════════════════════════════════
+#  Buyer panel — shop search + Stripe purchase
+# ════════════════════════════════════════════════════════════════
+
+from app.schemas import ShopSearchRequest, ShopSearchResponse
+
+
+@app.post("/shop/search", response_model=ShopSearchResponse)
+async def shop_search(req: ShopSearchRequest) -> ShopSearchResponse:
+    """Search for products via the controllable shopping agent."""
+    from app.shopping_agent import search as shop_search_fn
+
+    return await shop_search_fn(req.query)
+
+
+class ShopModeRequest(BaseModel):
+    mode: str  # "proven" | "flaky" | "failing"
+
+
+@app.post("/shop/mode")
+async def shop_mode(req: ShopModeRequest) -> dict[str, str]:
+    """Switch the shopping agent mode for demo control."""
+    from app.shopping_agent import Mode, set_mode
+
+    try:
+        set_mode(Mode(req.mode))
+        return {"mode": req.mode}
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"unknown mode: {req.mode}")
+
+
+@app.post("/buyer/search", response_model=ShopSearchResponse)
+async def buyer_search(req: ShopSearchRequest) -> ShopSearchResponse:
+    """Orchestrated search: vet shopping agents, delegate to the best one."""
+    from app.buyer import search_and_vet
+
+    return await search_and_vet(req.query)
+
+
+class PurchaseRequest(BaseModel):
+    amount_cents: int = Field(..., gt=0, description="Amount in cents (500 = $5.00)")
+    currency: str = "usd"
+    description: str = "Gauntlet buyer panel purchase"
+
+
+@app.post("/buyer/purchase")
+async def buyer_purchase(req: PurchaseRequest) -> dict:
+    """Create a Stripe test-mode PaymentIntent and confirm it.
+
+    Uses the STRIPE_TEST_KEY env var. Test cards always succeed in test mode.
+    Returns the PaymentIntent status, id, and receipt.
+    """
+    import os
+    import sys
+    from pathlib import Path
+
+    # Add buyer-agent to path so we can import stripe_client
+    buyer_agent_dir = Path(__file__).resolve().parent.parent.parent / "buyer-agent"
+    sys.path.insert(0, str(buyer_agent_dir))
+
+    try:
+        from stripe_client import StripeError, StripeTestClient
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail="stripe_client not found — ensure buyer-agent/stripe_client.py exists",
+        )
+
+    try:
+        client = StripeTestClient()
+        pi = client.purchase(
+            amount=req.amount_cents,
+            currency=req.currency,
+            description=req.description,
+        )
+    except StripeError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    receipt = ""
+    charges = pi.get("charges", {}).get("data", [])
+    if charges:
+        receipt = charges[0].get("receipt_url", "")
+
+    return {
+        "status": pi.get("status", "unknown"),
+        "id": pi.get("id", ""),
+        "amount_received": pi.get("amount_received", 0),
+        "currency": req.currency,
+        "receipt_url": receipt,
+        "test_mode": True,
+    }
