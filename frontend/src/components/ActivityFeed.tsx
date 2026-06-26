@@ -26,7 +26,7 @@ interface FeedLine {
 }
 
 const STAGE_PRETTY: Record<string, { icon: string; label: (e: ActivityEvent) => string }> = {
-  sentinel_trigger: { icon: '⟳', label: e => `${e.vendor ?? 'vendor'} changed — re-auditing` },
+  gauntlet_trigger: { icon: '⟳', label: e => `${e.vendor ?? 'vendor'} changed — re-auditing` },
   ingest: { icon: '·', label: e => `scraping ${e.vendor ?? ''}`.trim() },
   extract: { icon: '·', label: () => 'extracting claims' },
   hunt: { icon: '·', label: () => 'hunting evidence' },
@@ -34,9 +34,9 @@ const STAGE_PRETTY: Record<string, { icon: string; label: (e: ActivityEvent) => 
   judge_premium: { icon: '↑', label: e => `escalated to premium${e.claim_id ? ` · ${shortClaim(e.claim_id)}` : ''}` },
   advise: { icon: '·', label: () => 'advise' },
   vendor_done: { icon: '✓', label: e => `${e.vendor ?? 'vendor'} done` },
-  sentinel_published: { icon: '↗', label: e => describePublished(e) },
-  sentinel_notified: { icon: '✉', label: e => describeNotified(e) },
-  sentinel_reaudit_done: { icon: '✓', label: e => describeReaudit(e) },
+  gauntlet_published: { icon: '↗', label: e => describePublished(e) },
+  gauntlet_notified: { icon: '✉', label: e => describeNotified(e) },
+  gauntlet_reaudit_done: { icon: '✓', label: e => describeReaudit(e) },
   paid_fetch: { icon: '💰', label: e => `agent paid · ${(e.payload as Record<string,string>)?.category ?? 'verdicts'}` },
 }
 
@@ -75,9 +75,9 @@ function describeReaudit(e: ActivityEvent): string {
 
 function accentFor(stage: string, escalated: boolean, muted: boolean): FeedLine['accent'] {
   if (muted) return 'neutral'
-  if (stage === 'sentinel_trigger') return 'indigo'
-  if (stage === 'sentinel_reaudit_done') return 'good'
-  if (stage === 'sentinel_published') return 'good'
+  if (stage === 'gauntlet_trigger') return 'indigo'
+  if (stage === 'gauntlet_reaudit_done') return 'good'
+  if (stage === 'gauntlet_published') return 'good'
   if (stage === 'judge_premium' || escalated) return 'warn'
   if (stage === 'vendor_done') return 'good'
   return 'neutral'
@@ -138,7 +138,7 @@ export function ActivityFeed({
             escalated: data.escalated,
           }
           setLines(prev => [line, ...prev].slice(0, MAX_LINES))
-          if (data.stage === 'sentinel_published' && !muted) onPublishedOk()
+          if (data.stage === 'gauntlet_published' && !muted) onPublishedOk()
           if (data.stage === 'paid_fetch') onPaidFetch()
         } catch { /* ignore malformed */ }
       })

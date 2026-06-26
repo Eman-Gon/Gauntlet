@@ -133,12 +133,12 @@ async def _jina_fallback(http: httpx.AsyncClient, url: str) -> str:
 async def fetch_text_uncached(url: str) -> str:
     """Same fetch path as ingest() — trafilatura with Jina Reader fallback —
     but bypasses both cache reads and writes and emits no telemetry. The
-    sentinel loop uses this to peek at fresh content for change-detection
+    gauntlet loop uses this to peek at fresh content for change-detection
     without polluting the per-run bus or stale cache state.
 
     Loopback URLs (our /test-vendor/* served by FastAPI) come back as plain
     HTML which trafilatura handles. On any failure: return empty string —
-    the sentinel loop treats unreachable as 'no change'."""
+    the gauntlet loop treats unreachable as 'no change'."""
     try:
         async with httpx.AsyncClient(
             timeout=settings.SCRAPE_TIMEOUT_S,

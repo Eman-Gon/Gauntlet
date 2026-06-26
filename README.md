@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/sentinel-mark.svg" alt="Sentinel" width="128">
+  <img src="assets/gauntlet-mark.svg" alt="Gauntlet" width="128">
 </p>
 
-<h1 align="center">Sentinel / Gauntlet</h1>
+<h1 align="center">Gauntlet</h1>
 
 <p align="center"><b>Autonomous burden of proof for the agentic web, now pointed at agent behavior.</b></p>
 
@@ -15,7 +15,7 @@ scores reliability, persists reputation memory, and exposes
 hiring.
 
 Audit engine, cascade, telemetry, and dashboard patterns are adapted from our
-prior projects Receipts (June 10, 2026) and Sentinel (June 12, 2026). The
+prior projects Receipts (June 10, 2026) and Gauntlet (June 12, 2026). The
 agent-probing layer, behavioral verdicts, reputation and memory layer,
 reliability report, controllable target agent, buyer-agent demo, and AgentBox
 container packaging were added for the Beta Fund AI Agents for Hire Hackathon
@@ -84,14 +84,14 @@ Additional marketplace primitives:
 - `buyer-agent/buyer_agent.py` supports policy flags such as `--min-score`,
   `--allow-failed`, and repeated `--block-failed-category`.
 
-Sentinel watches the marketing pages of every vendor in a category, detects
+Gauntlet watches the marketing pages of every vendor in a category, detects
 when claims change, re-audits them against public evidence on a self-improving
 inference cascade — no human in the loop — then publishes the structured
 audit to **cited.md** where other AI agents can cite it, and charges those
 agents per fetch via **x402**.
 
 Marketing inflated for humans is invisible to agents. Agents buying software
-need machine-readable trust. Sentinel produces it, keeps it fresh
+need machine-readable trust. Gauntlet produces it, keeps it fresh
 autonomously, and gets paid for it.
 
 > We measure **public substantiation**, never truth. Verdicts are
@@ -119,7 +119,7 @@ SF · tokens&).
   escalation — fire-and-forget, never blocks. `/no_think` is gated to
   qwen-class models so Pioneer prompts stay clean. Cost surfaces non-zero
   for the Pioneer model string via `PIONEER_INPUT/OUTPUT_PER_MTOK`.
-- **Sentinel watch loop** (D03): asyncio task ticks every
+- **Gauntlet watch loop** (D03): asyncio task ticks every
   `WATCH_INTERVAL_S`, sha256-diffs fresh-fetched vendor pages, fires
   autonomous re-audits via the existing pipeline. Includes a fictional
   controllable test vendor at `/test-vendor/nimbus` for the live-edit
@@ -133,13 +133,13 @@ SF · tokens&).
   cited.md's publisher only (`afa1052b-…`). Parked on `geo_question_id`
   schema requirement — Senso onboarding flow deliberately not run.
 - **Liquid-glass UI + live activity feed** (D07): status strip subscribes
-  `/sentinel/status`; activity feed subscribes `/activity/stream` via SSE
+  `/gauntlet/status`; activity feed subscribes `/activity/stream` via SSE
   reusing the audit-stream `EventSource` pattern. Market inflation as the
   hero number; per-vendor inflation on cards. Motion fires only on real
   events (no decorative loops, no rotating taglines). Leaderboard is
   labelled "Most publicly substantiated"; banned vocabulary
   (Unsupported / Verified / Unverified / No evidence) absent.
-- **Identity**: Sentinel wordmark, radar-pulse logo, deep near-black glass,
+- **Identity**: Gauntlet wordmark, radar-pulse logo, deep near-black glass,
   one indigo→cyan accent, desaturated verdict palette.
 - **Env contract**: only `ANTHROPIC_API_KEY` + `TAVILY_API_KEY` required
   at boot. Every later integration (Pioneer, TF, Senso, x402, ClickHouse,
@@ -160,7 +160,7 @@ uv run uvicorn app.server:app --host 127.0.0.1 --port 8000
 cd frontend
 npm install
 npm run dev                            # http://localhost:3000
-                                       # proxies /audit /healthz /sentinel
+                                       # proxies /audit /healthz /gauntlet
                                        # /activity /test-vendor → :8000
 ```
 
@@ -172,7 +172,7 @@ cheap tier. The watch loop boots automatically with `WATCH_ENABLED=true`
 
 ## Pricing knobs
 
-Sentinel tracks two different prices:
+Gauntlet tracks two different prices:
 
 - **Buyer fetch price**: `X402_PRICE_USD` is the amount charged when another
   agent fetches a published verdict through the future x402 paywall. The
@@ -189,7 +189,7 @@ For tools without a stable public price, the frontend intentionally shows
 
 ## Airbyte + ClickHouse Cloud
 
-Docker is not required for Sentinel. Set `CLICKHOUSE_URL`,
+Docker is not required for Gauntlet. Set `CLICKHOUSE_URL`,
 `CLICKHOUSE_USER`, `CLICKHOUSE_PASSWORD`, and `CLICKHOUSE_DATABASE` to stream
 telemetry into ClickHouse Cloud while keeping the JSONL logs as replay backup.
 Use Airbyte Cloud to sync external context into the same warehouse. See
@@ -202,7 +202,7 @@ Use Airbyte Cloud to sync external context into the same warehouse. See
 | 00 | Scaffold + clean + new identity | ✅ shipped |
 | 01 | TrueFoundry gateway routes both tiers | 🟡 seam in (env-gated; falls back to direct when blank) |
 | 02 | Pioneer adaptive cheap tier + feedback loop | 🟡 wired (S1 fallback path) — needs `PIONEER_BASE_URL` + `PIONEER_MODEL` in `.env` and `PIONEER_FEEDBACK_URL` from rep |
-| 03 | Sentinel watch loop + controllable test page | ✅ shipped |
+| 03 | Gauntlet watch loop + controllable test page | ✅ shipped |
 | 04 | cited.md publish via Senso | 🟡 compiler + idempotency cache + conditional POST built — parked on `SENSO_GEO_QUESTION_ID` (schema gap; onboarding flow deliberately not run) |
 | 05 | x402 paywall on verdict endpoint | ❌ not started (x402 reference clone needed) |
 | 06 | Buyer agent (the money moment) | ❌ not started (depends on D05) |
@@ -217,7 +217,7 @@ Legend: ✅ shipped · 🟡 code wired, parked on a key / external schema · ❌
 ## Repo layout
 
 ```
-sentinel/
+gauntlet/
 ├─ backend/
 │  ├─ app/
 │  │  ├─ pipeline/         ingest, extract, hunt, judge, advise, orchestrator,
@@ -229,14 +229,14 @@ sentinel/
 │  │  ├─ scoring.py        substantiation score + claim inflation index
 │  │  ├─ schemas.py        Pydantic schemas-first contracts
 │  │  ├─ config.py         settings + boot-key gate
-│  │  ├─ sentinel.py       D03 watch loop: fetch → sha256 diff → re-audit →
+│  │  ├─ gauntlet_watch.py D03 watch loop: fetch → sha256 diff → re-audit →
 │  │  │                    publish/notify seams → activity bus
 │  │  ├─ publish.py        D04 cited.md compiler + idempotency cache +
 │  │  │                    conditional POST to /content-engine/publish
 │  │  ├─ notify.py         D09 Composio delta-post seam
 │  │  ├─ test_vendor.py    D03 controllable test page (Nimbus, fictional)
 │  │  └─ server.py         POST /audit · SSE /audit/{id}/stream ·
-│  │                       GET /sentinel/status · SSE /activity/stream ·
+│  │                       GET /gauntlet/status · SSE /activity/stream ·
 │  │                       GET /healthz · POST /test-vendor/nimbus
 │  ├─ data/vendors/        ai_support_agents.json, ai_sdrs.json
 │  └─ telemetry_history/   49 historical run_*.jsonl files for D08 backfill
@@ -245,9 +245,9 @@ sentinel/
 │     ├─ App.tsx           idle hero + leaderboard + VendorCard
 │     ├─ index.css         dark liquid-glass tokens · event-driven keyframes
 │     └─ components/
-│        ├─ SentinelLogo.tsx   radar-pulse mark
+│        ├─ GauntletLogo.tsx   radar-pulse mark
 │        ├─ GlassCard.tsx      shared glass primitive (D10 mounts here)
-│        ├─ StatusStrip.tsx    /sentinel/status poll · market inflation hero
+│        ├─ StatusStrip.tsx    /gauntlet/status poll · market inflation hero
 │        └─ ActivityFeed.tsx   /activity/stream SSE · spring slide-in lines
 └─ .env.example            every variable the repo knows about, blank
 ```

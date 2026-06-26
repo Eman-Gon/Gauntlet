@@ -1,4 +1,4 @@
-"""D09 — notify external surfaces via Composio when Sentinel detects a
+"""D09 — notify external surfaces via Composio when Gauntlet detects a
 claim-change re-audit.
 
 Flow:
@@ -19,13 +19,13 @@ import httpx
 from app.config import settings
 
 
-log = logging.getLogger("sentinel.notify")
+log = logging.getLogger("gauntlet.notify")
 
 _COMPOSIO_BASE = "https://backend.composio.dev/api/v1"
 
 
 @dataclass(frozen=True)
-class SentinelDelta:
+class GauntletDelta:
     """Change envelope handed to notify(). Compact — Composio actions take
     short payloads better than full MarketResult dumps."""
     vendor: str
@@ -35,16 +35,16 @@ class SentinelDelta:
     published_url: Optional[str] = None
 
 
-def _delta_text(delta: SentinelDelta) -> str:
+def _delta_text(delta: GauntletDelta) -> str:
     old = f"{round((delta.old_score or 0) * 100)}%" if delta.old_score is not None else "n/a"
     new = f"{round((delta.new_score or 0) * 100)}%" if delta.new_score is not None else "n/a"
     direction = "▲" if (delta.new_score or 0) > (delta.old_score or 0) else "▼"
     pub = f"\n📄 Published: {delta.published_url}" if delta.published_url else ""
     return (
-        f"🔔 *Sentinel detected a claim change*\n"
+        f"🔔 *Gauntlet detected a claim change*\n"
         f"*Vendor:* {delta.vendor} ({delta.url})\n"
         f"*Score:* {old} → {new} {direction}{pub}\n"
-        f"_Sentinel re-audited this vendor because its marketing page changed._"
+        f"_Gauntlet re-audited this vendor because its marketing page changed._"
     )
 
 
@@ -88,7 +88,7 @@ async def _execute_action(
         return False
 
 
-async def notify(delta: SentinelDelta) -> None:
+async def notify(delta: GauntletDelta) -> None:
     """Dispatch a claim-change alert via the first available Composio-connected
     surface. No-op (with log) if COMPOSIO_API_KEY is unset."""
     if not settings.COMPOSIO_API_KEY:
@@ -111,7 +111,7 @@ async def notify(delta: SentinelDelta) -> None:
             ok = await _execute_action(
                 http,
                 "SLACKBOT_SENDS_A_MESSAGE_TO_A_CHANNEL_OR_A_DIRECT_MESSAGE",
-                {"channel": "sentinel-alerts", "text": message},
+                {"channel": "gauntlet-alerts", "text": message},
             )
             if ok:
                 log.warning("notify OK via Slack: vendor=%s", delta.vendor)
@@ -123,11 +123,11 @@ async def notify(delta: SentinelDelta) -> None:
                 http,
                 "GITHUB_CREATE_AN_ISSUE",
                 {
-                    "owner": "sentinel",
+                    "owner": "gauntlet",
                     "repo": "alerts",
                     "title": f"Claim change: {delta.vendor}",
                     "body": message,
-                    "labels": ["sentinel", "claim-change"],
+                    "labels": ["gauntlet", "claim-change"],
                 },
             )
             if ok:

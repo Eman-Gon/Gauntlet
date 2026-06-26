@@ -6,7 +6,7 @@ import { GlassCard } from './GlassCard'
  *
  * Question in → generative UI out. The model (literal Thesys C1 when the key is
  * set, premium chat() otherwise) returns a constrained WIDGET spec; this panel
- * renders those widgets with Sentinel's own glass primitives. Per the §4 design
+ * renders those widgets with Gauntlet's own glass primitives. Per the §4 design
  * contract, generated content renders INSIDE our design language and can never
  * define it — there is no foreign stylesheet to clash. One contained card.
  */

@@ -246,7 +246,7 @@ GAUNTLET SERVICE  (FastAPI · AgentBox container)
 
 ## Lineage and Honesty
 
-The audit engine is not new. The pipeline (probe orchestration, judge cascade, scoring, SSE telemetry, liquid-glass dashboard) was built at two prior events: **Receipts** (June 10) and **Sentinel** (June 12).
+The audit engine is not new. The pipeline (probe orchestration, judge cascade, scoring, SSE telemetry, liquid-glass dashboard) was built at two prior events: **Receipts** (June 10) and **Gauntlet** (June 12).
 
 What is new today:
 
@@ -270,4 +270,4 @@ Trust as a hireable primitive of the agent economy.
 
 ---
 
-*Built at the Beta Fund AI Agents for Hire Hackathon, June 26, 2026. Audit engine adapted from Receipts (June 10) and Sentinel (June 12). Agent-probing layer, behavioral verdicts, reputation memory, reliability report, and AgentBox packaging built on-site.*
+*Built at the Beta Fund AI Agents for Hire Hackathon, June 26, 2026. Audit engine adapted from Receipts (June 10) and Gauntlet (June 12). Agent-probing layer, behavioral verdicts, reputation memory, reliability report, and AgentBox packaging built on-site.*

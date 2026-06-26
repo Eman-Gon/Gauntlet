@@ -1,7 +1,7 @@
 {
-  "name": "sentinel-agents",
+  "name": "gauntlet-agents",
   "version": "1.0.0",
-  "description": "Sentinel Guild agents — Claim Verifier + Buyer Agent",
+  "description": "Gauntlet Guild agents — Claim Verifier + Buyer Agent",
   "private": true,
   "type": "module",
   "scripts": {

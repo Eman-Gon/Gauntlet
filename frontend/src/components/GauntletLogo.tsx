@@ -1,5 +1,5 @@
 /**
- * Sentinel mark — concentric radar arcs over a single pulse dot.
+ * Gauntlet mark — concentric radar arcs over a single pulse dot.
  *
  * Reads as: a watcher broadcasting outward. The shape is the product —
  * autonomous monitoring of vendor claims rippling out to the agentic web.
@@ -7,7 +7,7 @@
  * Designed for monochrome (uses currentColor) so it works on dark glass and
  * on the wordmark, and scales clean from 16px (favicon) to 120px (hero).
  */
-export function SentinelLogo({ size = 32, className }: { size?: number; className?: string }) {
+export function GauntletLogo({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -15,7 +15,7 @@ export function SentinelLogo({ size = 32, className }: { size?: number; classNam
       viewBox="0 0 100 100"
       fill="none"
       stroke="currentColor"
-      aria-label="Sentinel"
+      aria-label="Gauntlet"
       role="img"
       className={className}
     >

@@ -1,6 +1,6 @@
 # Airbyte + ClickHouse Cloud, no Docker
 
-Sentinel does not need Docker. The backend writes telemetry to local JSONL files
+Gauntlet does not need Docker. The backend writes telemetry to local JSONL files
 by default, and can also stream each event to ClickHouse Cloud when these env
 vars are set:
 
@@ -31,12 +31,12 @@ locally:
 2. Add ClickHouse Cloud as the destination.
 3. Choose a source that matters for the demo, such as Google Sheets, GitHub,
    Slack, HubSpot, or Postgres.
-4. Sync that source into ClickHouse next to Sentinel's `telemetry` table.
+4. Sync that source into ClickHouse next to Gauntlet's `telemetry` table.
 5. Query both datasets in ClickHouse for the demo.
 
 Good demo line:
 
-> Airbyte brings external market context into ClickHouse, while Sentinel streams
+> Airbyte brings external market context into ClickHouse, while Gauntlet streams
 > live audit telemetry into the same warehouse.
 
 This keeps Airbyte load-bearing without making the local demo depend on Docker.

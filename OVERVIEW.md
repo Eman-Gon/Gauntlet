@@ -1,4 +1,4 @@
-# SENTINEL — BUILD CONSTITUTION
+# GAUNTLET — BUILD CONSTITUTION
 
 **Harness Engineering Hack · June 12, 2026 · AWS Builder Loft SF · tokens&**
 
@@ -8,7 +8,7 @@
 
 ## 0. WHAT THIS IS
 
-Sentinel is an autonomous market-claims auditor for the agentic web. It watches the marketing pages of every vendor in a category, detects when claims change, re-audits them against public evidence on a self-improving inference cascade — with no human in the loop — then publishes the structured audit to cited.md where other AI agents can cite it, and charges those agents per fetch via x402. Marketing inflated for humans is invisible to agents; agents buying software need machine-readable trust. Sentinel produces it, keeps it fresh autonomously, and gets paid for it.
+Gauntlet is an autonomous market-claims auditor for the agentic web. It watches the marketing pages of every vendor in a category, detects when claims change, re-audits them against public evidence on a self-improving inference cascade — with no human in the loop — then publishes the structured audit to cited.md where other AI agents can cite it, and charges those agents per fetch via x402. Marketing inflated for humans is invisible to agents; agents buying software need machine-readable trust. Gauntlet produces it, keeps it fresh autonomously, and gets paid for it.
 
 **One-liner:** "An autonomous auditor that polices AI marketing claims, publishes the receipts to the agentic web, and gets paid by the agents that cite them."
 
@@ -31,20 +31,20 @@ The claims-auditing ENGINE (pipeline: ingest→extract→hunt→judge→advise, 
 
 - `backend/app/pipeline/` — `ingest.py`, `extract.py`, `hunt.py`, `judge.py`, `advise.py`, `orchestrator.py`, `red_flag.py` (`honest_ad.py`: copy but **FEATURE-FLAG OFF** — Magnific is not a sponsor here; do not delete, do not call)
 - `backend/app/` — `schemas.py`, `scoring.py`, `cache.py`, `telemetry.py`, `config.py`, `clients.py` (heavily modified — see §4), `server.py` (extended)
-- `frontend/` — `App.tsx` leaderboard/VendorCard/SSE machinery, `index.css`, ReceiptsLogo → re-skin/rename to Sentinel
+- `frontend/` — `App.tsx` leaderboard/VendorCard/SSE machinery, `index.css`, ReceiptsLogo → re-skin/rename to Gauntlet
 - Data presets: `vendors/ai_support_agents.json` etc.
 
 ### NEW today (the actual hackathon build — this is what we demo and what we're judged on)
 
 | Feature | Description |
 |---|---|
-| **Sentinel loop (AUTONOMY)** | Scheduler that re-fetches vendor pages, diffs content hashes, and autonomously triggers re-audits on change. No button. No human. |
+| **Gauntlet loop (AUTONOMY)** | Scheduler that re-fetches vendor pages, diffs content hashes, and autonomously triggers re-audits on change. No button. No human. |
 | **Pioneer adaptive inference** | Cheap tier moves from Akamai/Qwen-standin to Pioneer's OpenAI-compatible endpoint. Escalation events become labeled feedback → the judge model improves with traffic. This is the technical heart. |
 | **TrueFoundry AI Gateway** | ALL LLM traffic (cheap + premium) routes through the gateway. One base-URL change per tier; buys observability + the governance story. |
 | **cited.md / Senso publish** | Every completed market audit is compiled and published as structured, citable context on cited.md via Senso. |
 | **x402 payment rail** | The audit-fetch API endpoint returns HTTP 402 with a quote; paying agents get the verdict JSON. The "agents pay for trust data" moat. |
 | **ClickHouse telemetry warehouse** | Pipe the existing JSONL telemetry (49 historical run files + live runs) into ClickHouse; live analytical queries in the demo. |
-| **Composio action layer** | On claim-change detection, Sentinel posts the delta (Slack or GitHub issue or X post) via Composio. The "act on the web" beat. |
+| **Composio action layer** | On claim-change detection, Gauntlet posts the delta (Slack or GitHub issue or X post) via Composio. The "act on the web" beat. |
 | **BUYER AGENT (THE DEMO STAR)** | Standalone autonomous agent that refuses to trust marketing, hits the verdict API, receives the x402 402-quote, PAYS, gets audited verdicts, reasons over them out loud, and picks a vendor on substantiation alone. |
 | **LIVE ACTIVITY FEED** | Dashboard feed where every real event animates in as it happens: watching → change detected → re-auditing via Pioneer → published to cited.md → buyer-agent paid $0.01. |
 | **Thesys C1 / OpenUI panel** | "Interrogate the market": question in → generative UI (charts/tables grounded in audit JSON) out, via C1 React SDK. Lives inside ONE contained glass card themed to our tokens — generated content renders inside OUR design language, never defines it. **CUT if it clashes visually on first wire-up.** |
@@ -59,13 +59,13 @@ The claims-auditing ENGINE (pipeline: ingest→extract→hunt→judge→advise, 
 | **TrueFoundry** | AI Gateway: route/govern/observe LLM traffic | Both cascade tiers routed through gateway | 1k platform credits |
 | **Senso / cited.md** | Publish structured context agents can cite/pay for | Auto-publish every market audit | 2k credits + Context Challenge |
 | **ClickHouse** | Fastest analytical DB | Telemetry warehouse + live demo queries | $1600 pool (+$350 Langfuse bonus if we trace via Langfuse→ClickHouse) |
-| **Composio** | Agent action/tool execution | Sentinel posts claim-change alerts | $200 |
-| **Guild.ai** | "Most Innovative Use of Agents" — likely concept-level (VERIFY AT KICKOFF) | The Sentinel autonomy story itself | **$2,800 — biggest prize** |
-| **Render** | Deploy platform | Deploy Sentinel here (instead of Railway) | Render credits |
+| **Composio** | Agent action/tool execution | Gauntlet posts claim-change alerts | $200 |
+| **Guild.ai** | "Most Innovative Use of Agents" — likely concept-level (VERIFY AT KICKOFF) | The Gauntlet autonomy story itself | **$2,800 — biggest prize** |
+| **Render** | Deploy platform | Deploy Gauntlet here (instead of Railway) | Render credits |
 | **OpenUI/Thesys** | Generative UI standard | Stretch: C1 panel over audit data | $2000 pool |
 | ~~Airbyte, Jua~~ | Context store / earth model | **SKIP** — forced fits lose points | — |
 
-**Judging:** Idea 20 · Technical 20 · Tool Use 20 · Presentation 20 · Autonomy 20. The Sentinel loop + x402 + cited.md directly attack Autonomy + Tool Use + Idea.
+**Judging:** Idea 20 · Technical 20 · Tool Use 20 · Presentation 20 · Autonomy 20. The Gauntlet loop + x402 + cited.md directly attack Autonomy + Tool Use + Idea.
 
 ---
 
@@ -73,7 +73,7 @@ The claims-auditing ENGINE (pipeline: ingest→extract→hunt→judge→advise, 
 
 ```
            ┌─────────────────────────────────────────────────┐
-           │ SENTINEL LOOP (new, asyncio task in server)     │
+           │ GAUNTLET LOOP (new, asyncio task in server)     │
            │  every N min: fetch vendor pages → sha256 diff  │
            │  changed? → enqueue re-audit (autonomous)       │
            └──────────────┬──────────────────────────────────┘
@@ -88,7 +88,7 @@ The claims-auditing ENGINE (pipeline: ingest→extract→hunt→judge→advise, 
                           │
                           ▼
   finalize_market → MarketResult
-       ├── SSE → React dashboard (reused, re-skinned "Sentinel")
+       ├── SSE → React dashboard (reused, re-skinned "Gauntlet")
        ├── telemetry → ClickHouse (new sink alongside JSONL)
        ├── publish → Senso → cited.md  (structured citable audit)
        ├── notify → Composio (Slack/GitHub/X post of the delta)
@@ -103,10 +103,10 @@ The claims-auditing ENGINE (pipeline: ingest→extract→hunt→judge→advise, 
 - **NEW** `record_feedback(claim, cheap_verdict, premium_verdict)` → POSTs the disagreement pair to Pioneer's feedback API. Every escalation makes the cheap judge better.
 - KEEP `cost_usd()` + telemetry hooks. KEEP `CHEAP_FALLBACK_TO_PREMIUM=false` discipline.
 
-### Sentinel loop (`backend/app/sentinel.py` — new)
+### Gauntlet loop (`backend/app/gauntlet.py` — new)
 
 - `watch_list` table/json: vendor → url → last_content_hash → last_audit_at
-- asyncio background task: every `WATCH_INTERVAL_S` (demo: 30s) → fetch → hash → if changed: log `sentinel_trigger` → `run_vendor` → publish + notify
+- asyncio background task: every `WATCH_INTERVAL_S` (demo: 30s) → fetch → hash → if changed: log `gauntlet_trigger` → `run_vendor` → publish + notify
 - **DEMO LEVER:** a test vendor page WE control (tiny static page on Render) so we can edit a claim live on stage and watch the loop fire
 
 ### cited.md / Senso publish (`backend/app/publish.py` — new)
@@ -163,20 +163,20 @@ Reference: the Triage dashboard. Handcrafted, minimalist, Apple Liquid Glass. **
 - **Motion is tied to REAL events only** — that's what makes it feel alive vs animated
 
 **Hierarchy of screens:**
-1. Sentinel status strip — watching n vendors · last check · autonomous triggers · published links · agents-paid counter
-2. **LIVE ACTIVITY FEED** (hero element) — each pipeline event (`sentinel_trigger`, `ingest`, `judge_cheap`, `escalate`, `published`, `paid_fetch`) appears as a minimal glass line with timestamp, animating in from the real SSE stream
+1. Gauntlet status strip — watching n vendors · last check · autonomous triggers · published links · agents-paid counter
+2. **LIVE ACTIVITY FEED** (hero element) — each pipeline event (`gauntlet_trigger`, `ingest`, `judge_cheap`, `escalate`, `published`, `paid_fetch`) appears as a minimal glass line with timestamp, animating in from the real SSE stream
 3. Leaderboard + vendor cards (ported, re-skinned)
 4. Contained C1 "Interrogate the market" glass card (if it survives)
 
 **Verdict labels EXACTLY:** `Publicly substantiated` / `Self-reported only` / `No public receipt`. Banned words stay banned.
 
-**Wordmark:** Sentinel + tagline "Autonomous burden of proof for the agentic web."
+**Wordmark:** Gauntlet + tagline "Autonomous burden of proof for the agentic web."
 
 ---
 
 ## 5. REPO & WORKSPACE PLAN
 
-- **NEW public GitHub repo:** `sentinel` — REQUIRED by Devpost submission
+- **NEW public GitHub repo:** `gauntlet` — REQUIRED by Devpost submission
 - Local: same machine, NEW folder. Copy reusable files in (do not git-clone history — fresh repo, clean commits)
 - Attribution line in README: "audit engine adapted from our prior project Receipts (built June 10); everything in §2-NEW built today"
 - `.env` NEVER committed. `.env.example` with every var blank.
@@ -208,7 +208,7 @@ THESYS_C1_API_KEY=          # console.thesys.dev — OpenAI-compatible; for the 
 CLICKHOUSE_URL=             # cloud trial or localhost docker
 CLICKHOUSE_PASSWORD=
 
-# sentinel
+# gauntlet
 WATCH_INTERVAL_S=30
 
 # flags
@@ -226,13 +226,13 @@ HONEST_AD_ENABLED=false     # Magnific OFF — not a sponsor here
 | **00** | Repo scaffold: copy reusable files, rename, boot backend+frontend, flag off honest_ad, README attribution, port .glass tokens | Local audit runs end-to-end on old stand-in tier | 30m |
 | **01** | TrueFoundry gateway: cheap+premium base URLs through gateway | One sweep, telemetry shows gateway models | 30m |
 | **02** | Pioneer cheap tier + `record_feedback` on escalation | Sweep on Pioneer; feedback rows visible in Pioneer dashboard | 90m |
-| **03** | Sentinel loop + our controllable test vendor page | Edit page → autonomous re-audit fires, no click | 60m |
+| **03** | Gauntlet loop + our controllable test vendor page | Edit page → autonomous re-audit fires, no click | 60m |
 | **04** | cited.md publish via Senso | Live cited.md URL opens with our audit | 60m |
 | **05** | x402 paywall on verdict endpoint | curl 402 quote → paid fetch → JSON | 45m |
 | **06** | BUYER AGENT (depends on 05) | Terminal: agent pays, reasons, decides; dashboard counter ticks | 45m |
 | **07** | UI: liquid-glass re-skin + LIVE ACTIVITY FEED + status strip | The loop is visible: feed animates from real SSE events | 75m |
 | **08** | ClickHouse sink + 49-file backfill + 3 demo queries | Live query in demo | 45m |
-| **09** | Composio change-alert | Slack/GitHub post on sentinel trigger | 30m |
+| **09** | Composio change-alert | Slack/GitHub post on gauntlet trigger | 30m |
 | **10** | C1 "Interrogate the market" glass card (`npx skills add thesysdev/openui`) | Question → generated chart inside our theme; CUT if it clashes | 60m |
 | **11** | 3-min video recording + Devpost submission | The submission | 45m |
 
@@ -262,7 +262,7 @@ HONEST_AD_ENABLED=false     # Magnific OFF — not a sponsor here
 
 - **Build everything, show one thing:** the loop IS the demo; everything else is one flash.
 - **Load-bearing, not decorative:** if a sponsor tool can be removed without the demo breaking, either wire it deeper or cut the claim that we "use" it.
-- **Principles over state machines; idempotency where retries happen:** sentinel re-audits must not double-publish (hash-key the publishes); buyer-agent must be re-runnable for rehearsal + live without double-charging confusion.
+- **Principles over state machines; idempotency where retries happen:** gauntlet re-audits must not double-publish (hash-key the publishes); buyer-agent must be re-runnable for rehearsal + live without double-charging confusion.
 - **Design discipline:** the aesthetic contract in §4 is binding. Handcrafted liquid glass, monochrome-first, motion only on real events. Any generated UI (C1) renders INSIDE our theme or gets cut. If a screen looks like a template, redo or remove it.
 - **No defamation surface:** substantiation language everywhere; our controllable test page uses a FICTIONAL vendor name for the live-edit stunt — never live-edit a real company's score on stage theatrically.
 - **Dispatch rhythm:** spec → CC executes → report with acceptance checks → next. CC stops on structural surprises.
@@ -277,7 +277,7 @@ Let vendors submit counter-evidence to disputed claims with **staked USDC**:
 - If their counter-evidence is accepted → stake refunded
 - If rejected → stake goes into the evidence bounty pool
 
-This transforms Sentinel from a one-sided auditor (which vendors can ignore) into a two-sided marketplace with adversarial pressure toward truth. It's the Polymarket model applied to marketing claims.
+This transforms Gauntlet from a one-sided auditor (which vendors can ignore) into a two-sided marketplace with adversarial pressure toward truth. It's the Polymarket model applied to marketing claims.
 
 **Endpoint:** accepts a dispute payload + USDC tx hash, queues it for re-judgment, either refunds or redistributes the stake. Creates skin-in-the-game truth-seeking, a sustainable funding mechanism, and a moat — vendors are financially invested in the platform.
 
@@ -291,15 +291,15 @@ This is Yelp for the agent economy — but the reviewers are themselves AI agent
 
 ### The "FTC in a Box" Angle
 
-Frame Sentinel as compliance infrastructure: "Generate an audit trail proving your marketing claims before regulators ask." This flips from attacking vendors to serving them.
+Frame Gauntlet as compliance infrastructure: "Generate an audit trail proving your marketing claims before regulators ask." This flips from attacking vendors to serving them.
 
 - Enterprise compliance teams will pay $50k/year for this
-- **"Sentinel Certified" badge** — like SOC 2 but for marketing honesty — that vendors embed on their sites
+- **"Gauntlet Certified" badge** — like SOC 2 but for marketing honesty — that vendors embed on their sites
 - The badge is verified via a live API call, so it's not gameable
 
 ### Demo Imperative
 
-**Make an agent choose, not just fetch.** Show a buyer agent comparing two vendors using Sentinel data and explaining its purchasing decision out loud:
+**Make an agent choose, not just fetch.** Show a buyer agent comparing two vendors using Gauntlet data and explaining its purchasing decision out loud:
 
 > *"Vendor A claims 99.9% uptime but it's self-reported only; Vendor B's is publicly substantiated — purchasing B."*
 

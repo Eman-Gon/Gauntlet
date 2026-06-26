@@ -5,12 +5,12 @@ GET  /audit/{run_id}/stream       — per-run SSE telemetry (D00)
 GET  /audit/{run_id}/results      — per-run partial/final MarketResult (D00)
 GET  /healthz                     — liveness
 
-D03 additions (sentinel autonomy layer):
+D03 additions (gauntlet autonomy layer):
 GET  /test-vendor/nimbus          — fictional editable vendor page (HTML)
 POST /test-vendor/nimbus          — replace claims on the test page (JSON)
-GET  /sentinel/status             — live watcher state (watching/triggers/etc.)
+GET  /gauntlet/status             — live watcher state (watching/triggers/etc.)
 GET  /activity/stream             — SSE of the global activity bus
-                                    (every sentinel_trigger + per-trigger
+                                    (every gauntlet_trigger + per-trigger
                                     pipeline event, ready for D07's feed)
 
 D10 additions (Thesys C1 / OpenUI):
@@ -31,25 +31,25 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sse_starlette import EventSourceResponse
 
-from app import sentinel, test_vendor
+from app import gauntlet_watch, test_vendor
 from app.telemetry import TelemetryBus
 from app.schemas import TelemetryEvent, VetAccepted, VetRequest
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Start the sentinel loop on boot, cancel on shutdown. Lazy state init
+    """Start the gauntlet loop on boot, cancel on shutdown. Lazy state init
     means the watcher's MarketResult and activity bus exist before the first
     request hits the dashboard."""
-    await sentinel.start()
+    await gauntlet_watch.start()
     try:
         yield
     finally:
-        await sentinel.stop()
+        await gauntlet_watch.stop()
 
 
 app = FastAPI(
-    title="Sentinel — Autonomous burden of proof for the agentic web",
+    title="Gauntlet — Autonomous burden of proof for the agentic web",
     lifespan=_lifespan,
 )
 
@@ -110,7 +110,7 @@ async def audit(req: AuditRequest) -> AuditAccepted:
 @app.post("/vet", response_model=VetAccepted)
 async def vet(req: VetRequest) -> VetAccepted:
     """Run a Gauntlet probe battery against a black-box target agent."""
-    bus = TelemetryBus(parent_bus=sentinel.state().activity_bus)
+    bus = TelemetryBus(parent_bus=gauntlet_watch.state().activity_bus)
     _RUNS[bus.run_id] = bus
 
     from app.gauntlet import vet_agent
@@ -292,9 +292,9 @@ async def results(run_id: str) -> Any:
 
     if task and task.done() and not task.exception():
         final = task.result()
-        # Keep sentinel state in sync so /interrogate sees live data
+        # Keep gauntlet state in sync so /interrogate sees live data
         if final and final.vendors:
-            sentinel.state().market = final
+            gauntlet_watch.state().market = final
         return orjson.loads(orjson.dumps(final.model_dump(mode="json")))
 
     if partial is not None:
@@ -326,14 +326,14 @@ async def debug_config() -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# D03 — Sentinel autonomy layer
+# D03 — Gauntlet autonomy layer
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 @app.get("/test-vendor/nimbus", response_class=HTMLResponse)
 async def test_vendor_nimbus_get() -> HTMLResponse:
     """Fictional vendor marketing page. Trafilatura extracts the claim list
-    as plain text; the sentinel loop hashes that to detect changes."""
+    as plain text; the gauntlet loop hashes that to detect changes."""
     return HTMLResponse(content=test_vendor.render_html())
 
 
@@ -362,9 +362,9 @@ async def test_vendor_nimbus_post(payload: NimbusUpdate) -> JSONResponse:
     )
 
 
-@app.get("/sentinel/status")
-async def sentinel_status() -> dict:
-    return sentinel.status_snapshot()
+@app.get("/gauntlet/status")
+async def gauntlet_status() -> dict:
+    return gauntlet_watch.status_snapshot()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -402,8 +402,8 @@ async def market_verdicts(
             from app.x402 import _mark_used
             _mark_used(txn_hash)
 
-    # Fetch live market result from sentinel state
-    market = sentinel.state().market
+    # Fetch live market result from gauntlet state
+    market = gauntlet_watch.state().market
     data = market.model_dump(mode="json")
 
     # Intent filtering: re-rank vendors by specified categories
@@ -424,7 +424,7 @@ async def market_verdicts(
                 vendor["intent_score"] = None
 
     # Emit paid_fetch event so the dashboard "Agents paid" counter ticks
-    sentinel.state().activity_bus.emit(
+    gauntlet_watch.state().activity_bus.emit(
         TelemetryEvent(
             stage="paid_fetch",
             vendor=None,
@@ -455,16 +455,16 @@ async def interrogate(req: InterrogateRequest) -> EventSourceResponse:
     Streams a generative-UI response grounded in the live MarketResult."""
     from app.thesys import stream_interrogate
 
-    # Use the freshest available market: sentinel watch-loop state, or the
+    # Use the freshest available market: gauntlet watch-loop state, or the
     # most recently completed /audit run (whichever has more vendors).
-    market = sentinel.state().market
+    market = gauntlet_watch.state().market
     for run_id, task in _TASKS.items():
         if task and task.done() and not task.exception():
             try:
                 candidate = task.result()
                 if candidate and len(candidate.vendors) > len(market.vendors):
                     market = candidate
-                    sentinel.state().market = candidate
+                    gauntlet_watch.state().market = candidate
             except Exception:
                 pass
 
@@ -477,10 +477,10 @@ async def interrogate(req: InterrogateRequest) -> EventSourceResponse:
 
 @app.get("/activity/stream")
 async def activity_stream(request: Request) -> EventSourceResponse:
-    """Global activity feed — sentinel_trigger, every per-trigger pipeline
+    """Global activity feed — gauntlet_trigger, every per-trigger pipeline
     stage event (ingest/extract/hunt/judge_*/advise/vendor_done), and
-    sentinel_reaudit_done. D07's UI subscribes here."""
-    bus = sentinel.state().activity_bus
+    gauntlet_reaudit_done. D07's UI subscribes here."""
+    bus = gauntlet_watch.state().activity_bus
     queue = bus.subscribe(replay=True)
 
     async def gen():
@@ -519,7 +519,7 @@ class InterrogateRequest(BaseModel):
 @app.post("/interrogate")
 async def interrogate_market(req: InterrogateRequest) -> JSONResponse:
     """Question + MarketResult → widget spec. The model is grounded on the
-    supplied audit only; the panel renders the widgets in Sentinel's own glass
+    supplied audit only; the panel renders the widgets in Gauntlet's own glass
     components, so generated content never defines the design language."""
     from app.interrogate import interrogate as run_interrogate
     from app.schemas import MarketResult

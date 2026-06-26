@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sentinel-api
+    name: gauntlet-api
     runtime: python
     region: oregon
     plan: free
@@ -49,7 +49,7 @@ services:
         sync: false
 
   - type: web
-    name: sentinel-ui
+    name: gauntlet-ui
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
@@ -57,4 +57,4 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       - key: VITE_API_URL
-        value: https://sentinel-api-67yh.onrender.com
+        value: https://gauntlet-api-67yh.onrender.com

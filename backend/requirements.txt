@@ -19,7 +19,7 @@
     #   pydantic-settings
     #   pysher
     #   requests
-    #   sentinel
+    #   gauntlet
     #   sse-starlette
     #   starlette
     #   tavily-python
@@ -44,7 +44,7 @@
     # via pydantic
     # via pysher
     # via python-dateutil
-    # via sentinel
+    # via gauntlet
     # via tavily-python
     # via trafilatura
     # via uvicorn

@@ -1,7 +1,7 @@
 import { CSSProperties, ReactNode } from 'react'
 
 /**
- * The Sentinel glass primitive. Every panel renders through here so the design
+ * The Gauntlet glass primitive. Every panel renders through here so the design
  * contract (rgba(18,18,30,0.55), blur(14-20px) saturate(150%), 1px hairline,
  * soft deep shadow) lives in ONE place. D10's C1 card mounts inside this and
  * inherits containment for free.

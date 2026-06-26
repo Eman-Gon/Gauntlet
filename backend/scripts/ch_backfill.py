@@ -4,7 +4,7 @@ queries return real history on first connect.
 
 Usage:
     CLICKHOUSE_URL=http://localhost:8123/default \
-    /Users/ioannis/Downloads/sentinel/backend/.venv/bin/python \
+    /Users/ioannis/Downloads/gauntlet/backend/.venv/bin/python \
         backend/scripts/ch_backfill.py
 
 Idempotent: ClickHouse's MergeTree dedups by (run_id, ts, stage); re-running

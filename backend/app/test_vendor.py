@@ -1,7 +1,7 @@
 """Fictional test vendor — Nimbus Support AI.
 
 The demo lever. On stage we POST a new puffy claim to /test-vendor/nimbus and
-the sentinel loop autonomously detects the diff and re-audits.
+the gauntlet loop autonomously detects the diff and re-audits.
 
 FICTIONAL by design: a real company's score being live-edited on stage is
 defamation theatre. Nimbus is invented — name, claims, score motion are all
@@ -56,7 +56,7 @@ def state() -> NimbusState:
 
 def render_html() -> str:
     """Render the current Nimbus marketing page. Keep the markup honest HTML
-    so trafilatura yields stable plain text — the sentinel loop hashes the
+    so trafilatura yields stable plain text — the gauntlet loop hashes the
     extracted text, not the raw HTML."""
     s = _STATE
     claim_items = "\n      ".join(
@@ -80,7 +80,7 @@ def render_html() -> str:
         </ul>
       </section>
       <footer>
-        <p>© Nimbus Support AI — a fictional vendor for Sentinel testing.</p>
+        <p>© Nimbus Support AI — a fictional vendor for Gauntlet testing.</p>
       </footer>
     </article>
   </body>

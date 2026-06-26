@@ -1,4 +1,4 @@
-"""Sentinel watch loop — the autonomy layer.
+"""Gauntlet watch loop — the autonomy layer.
 
 Every WATCH_INTERVAL_S seconds: re-fetch every watched vendor's page (cache-
 bypassed), sha256 the extracted text, compare against last seen hash. On
@@ -6,7 +6,7 @@ change:
   1. update last hash IMMEDIATELY (debounce — same content doesn't re-fire)
   2. prime the ingest cache with the fresh text so run_vendor's normal
      cached path sees current content (no double-fetch)
-  3. emit `sentinel_trigger` on the activity bus
+  3. emit `gauntlet_trigger` on the activity bus
   4. await run_vendor on a per-trigger TelemetryBus parented to the activity
      bus → every pipeline stage (ingest/extract/hunt/judge_cheap/judge_premium/
      advise/vendor_done) mirrors onto activity, ready for D07's feed
@@ -14,7 +14,7 @@ change:
      (recompute credibility + inflation index + clusters + benchmark)
   6. call publish(market) — seam, no-op without SENSO_API_KEY (D04)
   7. call notify(delta) — seam, no-op without COMPOSIO_API_KEY (D09)
-  8. emit `sentinel_reaudit_done` with old→new score
+  8. emit `gauntlet_reaudit_done` with old→new score
 
 The watch_list seeds with the ai_support_agents preset (is_test=False, never
 live-edited on stage) plus Nimbus (is_test=True, our controllable test page).
@@ -38,7 +38,7 @@ from typing import Optional
 
 from app import cache
 from app.config import settings
-from app.notify import SentinelDelta, notify
+from app.notify import GauntletDelta, notify
 from app.pipeline.ingest import fetch_text_uncached
 from app.pipeline.orchestrator import run_vendor
 from app.publish import publish
@@ -47,7 +47,7 @@ from app.scoring import finalize_market
 from app.telemetry import TelemetryBus
 
 
-log = logging.getLogger("sentinel.loop")
+log = logging.getLogger("gauntlet.loop")
 
 
 # Path to the preset that seeds non-test vendors. Built from REPO_ROOT so it
@@ -66,11 +66,11 @@ class WatchEntry:
 
 
 @dataclass
-class SentinelState:
-    """Live state held by the watcher. Read by /sentinel/status and the
+class GauntletState:
+    """Live state held by the watcher. Read by /gauntlet/status and the
     activity stream subscribers."""
     activity_bus: TelemetryBus = field(
-        default_factory=lambda: TelemetryBus(run_id="sentinel_activity")
+        default_factory=lambda: TelemetryBus(run_id="gauntlet_activity")
     )
     market: MarketResult = field(
         default_factory=lambda: MarketResult(category="AI support agents")
@@ -82,19 +82,19 @@ class SentinelState:
     _market_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
-_STATE: Optional[SentinelState] = None
+_STATE: Optional[GauntletState] = None
 
 
-def state() -> SentinelState:
+def state() -> GauntletState:
     """Singleton accessor. Lazy so import order doesn't matter."""
     global _STATE
     if _STATE is None:
-        _STATE = SentinelState()
+        _STATE = GauntletState()
         _seed_watch_list(_STATE)
     return _STATE
 
 
-def _seed_watch_list(s: SentinelState) -> None:
+def _seed_watch_list(s: GauntletState) -> None:
     """Real vendors from the preset + our fictional Nimbus test page. The
     Nimbus URL is configurable so the demo can swap to a Render-hosted copy
     later (constitution §4 forward note) without code change."""
@@ -104,7 +104,7 @@ def _seed_watch_list(s: SentinelState) -> None:
         for name, url in data.get("urls", []):
             s.watch_list.append(WatchEntry(vendor=str(name), url=str(url), is_test=False))
     except Exception as e:  # missing preset is a soft fail in tests
-        log.warning("sentinel preset load failed: %s", e)
+        log.warning("gauntlet preset load failed: %s", e)
 
     s.watch_list.append(
         WatchEntry(
@@ -123,7 +123,7 @@ def _hash(text: str) -> str:
 
 
 def _emit_activity(stage: str, *, vendor: Optional[str] = None, payload: Optional[dict] = None) -> None:
-    """Push a sentinel-level event onto the activity bus. Pipeline stages
+    """Push a gauntlet-level event onto the activity bus. Pipeline stages
     are pushed through the per-trigger bus's parent_bus forwarding."""
     s = state()
     s.activity_bus.emit(
@@ -138,7 +138,7 @@ async def _process_entry(entry: WatchEntry) -> None:
     try:
         text = await fetch_text_uncached(entry.url)
     except Exception as e:
-        log.warning("sentinel fetch failed vendor=%s url=%s err=%s", entry.vendor, entry.url, e)
+        log.warning("gauntlet fetch failed vendor=%s url=%s err=%s", entry.vendor, entry.url, e)
         return
 
     if not text.strip():
@@ -166,7 +166,7 @@ async def _process_entry(entry: WatchEntry) -> None:
     cache.set("ingest", entry.url, text)
 
     _emit_activity(
-        "sentinel_trigger",
+        "gauntlet_trigger",
         vendor=entry.vendor,
         payload={
             "url": entry.url,
@@ -194,7 +194,7 @@ async def _process_entry(entry: WatchEntry) -> None:
             naive=False,
         )
     except Exception as e:
-        log.exception("sentinel run_vendor failed vendor=%s err=%s", entry.vendor, e)
+        log.exception("gauntlet run_vendor failed vendor=%s err=%s", entry.vendor, e)
         return
 
     new_score = new_result.credibility_score
@@ -226,7 +226,7 @@ async def _process_entry(entry: WatchEntry) -> None:
     else:
         publish_status = "skipped:idempotent_or_error"
     _emit_activity(
-        "sentinel_published",
+        "gauntlet_published",
         vendor=entry.vendor,
         payload={
             "url": published_url,
@@ -235,7 +235,7 @@ async def _process_entry(entry: WatchEntry) -> None:
     )
 
     try:
-        await notify(SentinelDelta(
+        await notify(GauntletDelta(
             vendor=entry.vendor,
             url=entry.url,
             old_score=old_score,
@@ -247,13 +247,13 @@ async def _process_entry(entry: WatchEntry) -> None:
         log.exception("notify seam raised: %s", e)
         notify_status = "error"
     _emit_activity(
-        "sentinel_notified",
+        "gauntlet_notified",
         vendor=entry.vendor,
         payload={"status": notify_status},
     )
 
     _emit_activity(
-        "sentinel_reaudit_done",
+        "gauntlet_reaudit_done",
         vendor=entry.vendor,
         payload={
             "old_score": old_score,
@@ -268,7 +268,7 @@ async def _loop() -> None:
     s = state()
     interval = max(1, int(settings.WATCH_INTERVAL_S))
     log.info(
-        "sentinel loop start: watching=%d interval=%ds",
+        "gauntlet loop start: watching=%d interval=%ds",
         len(s.watch_list),
         interval,
     )
@@ -283,7 +283,7 @@ async def _loop() -> None:
             )
             await asyncio.sleep(interval)
     except asyncio.CancelledError:
-        log.info("sentinel loop cancelled")
+        log.info("gauntlet loop cancelled")
         raise
 
 
@@ -291,12 +291,12 @@ async def start() -> Optional[asyncio.Task]:
     """Called from the FastAPI lifespan. Returns the task so the lifespan
     can cancel it cleanly on shutdown. Respects WATCH_ENABLED."""
     if not settings.WATCH_ENABLED:
-        log.info("WATCH_ENABLED=false → sentinel loop not started")
+        log.info("WATCH_ENABLED=false → gauntlet loop not started")
         return None
     s = state()
     if s.task is not None and not s.task.done():
         return s.task
-    s.task = asyncio.create_task(_loop(), name="sentinel-loop")
+    s.task = asyncio.create_task(_loop(), name="gauntlet-loop")
     return s.task
 
 
@@ -313,7 +313,7 @@ async def stop() -> None:
 
 
 def status_snapshot() -> dict:
-    """JSON-safe snapshot for GET /sentinel/status."""
+    """JSON-safe snapshot for GET /gauntlet/status."""
     s = state()
     return {
         "watching": len(s.watch_list),

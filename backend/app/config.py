@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     SENSO_GEO_QUESTION_ID: str = ""
     # Comma-separated publisher UUIDs to target. Default = cited.md only
     # (publisher_id afa1052b-8226-438c-895e-335dcf21743a — discovered via
-    # GET /org/destinations on 2026-06-12 against the SENTINEL org).
+    # GET /org/destinations on 2026-06-12 against the GAUNTLET org).
     SENSO_PUBLISHER_IDS: str = "afa1052b-8226-438c-895e-335dcf21743a"
 
     X402_PAY_TO: str = ""
@@ -119,13 +119,13 @@ class Settings(BaseSettings):
     CLICKHOUSE_PASSWORD: str = ""
     CLICKHOUSE_DATABASE: str = "default"
 
-    # ── sentinel loop (D03) ──────────────────────────────────────────────────
+    # ── gauntlet loop (D03) ──────────────────────────────────────────────────
     # WATCH_ENABLED=false disables the autonomous watcher (useful for local
     # dev when you don't want the loop hitting external sites). The demo runs
     # with this on. WATCH_INTERVAL_S is the tick cadence.
     WATCH_ENABLED: bool = True
     WATCH_INTERVAL_S: int = 30
-    # Where the live-editable test page lives. Sentinel watches this URL as
+    # Where the live-editable test page lives. Gauntlet watches this URL as
     # the is_test vendor. The demo lever — edit a claim here on stage and
     # the loop fires within one interval.
     TEST_VENDOR_NAME: str = "Nimbus Support AI"
@@ -183,5 +183,5 @@ def require_boot_keys() -> None:
     ]
     if missing:
         raise RuntimeError(
-            "Sentinel boot requires " + " + ".join(missing) + " in .env."
+            "Gauntlet boot requires " + " + ".join(missing) + " in .env."
         )

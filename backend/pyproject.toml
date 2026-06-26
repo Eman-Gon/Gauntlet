@@ -1,7 +1,7 @@
 [project]
-name = "sentinel"
+name = "gauntlet"
 version = "0.1.0"
-description = "Sentinel — Autonomous burden of proof for the agentic web. Reuses the Receipts cost-aware inference cascade."
+description = "Gauntlet — Autonomous burden of proof for the agentic web. Reuses the Receipts cost-aware inference cascade."
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",

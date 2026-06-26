@@ -1,5 +1,5 @@
 """D10 — 'Interrogate the market' — streams Claude responses grounded in
-live Sentinel audit data. Uses ANTHROPIC_API_KEY directly (no Thesys billing
+live Gauntlet audit data. Uses ANTHROPIC_API_KEY directly (no Thesys billing
 required). THESYS_C1_API_KEY is kept in config but no longer required."""
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ from app.config import settings
 from app.schemas import MarketResult
 
 
-log = logging.getLogger("sentinel.interrogate")
+log = logging.getLogger("gauntlet.interrogate")
 
 
 def _market_context(market: MarketResult) -> str:
     lines = [
-        f"SENTINEL LIVE MARKET DATA — {market.category}",
+        f"GAUNTLET LIVE MARKET DATA — {market.category}",
         f"Claim Inflation Index: {market.claim_inflation_index:.2f}x",
         f"Vendors audited: {len(market.vendors)}",
         "",
@@ -38,7 +38,7 @@ def _market_context(market: MarketResult) -> str:
 
 
 _SYSTEM_PROMPT = """\
-You are Sentinel's market intelligence assistant. Sentinel autonomously audits
+You are Gauntlet's market intelligence assistant. Gauntlet autonomously audits
 software vendor marketing claims against public evidence.
 
 Three verdict labels:

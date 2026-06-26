@@ -41,7 +41,7 @@ class TelemetryBus:
         self._replay: deque[TelemetryEvent] = deque(maxlen=MAX_REPLAY_EVENTS)
         self._log_path = LOGS_DIR / f"run_{self.run_id}.jsonl"
         self.partial_result: Optional[object] = None  # set by orchestrator as vendors complete
-        # Optional upstream bus that every emit() also feeds. The Sentinel loop
+        # Optional upstream bus that every emit() also feeds. The Gauntlet loop
         # uses this to mirror per-trigger run events onto a long-lived activity
         # bus that D07's UI subscribes to. Parent never receives totals — only
         # event broadcast — so each per-run bus keeps its own clean accounting.

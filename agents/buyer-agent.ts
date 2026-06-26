@@ -1,17 +1,17 @@
 /**
- * Sentinel Buyer Agent — Guild Agent (D06)
+ * Gauntlet Buyer Agent — Guild Agent (D06)
  *
  * Autonomous procurement agent that refuses to trust vendor marketing.
- * Pays $0.01 USDC via x402 to access Sentinel's audited verdicts,
+ * Pays $0.01 USDC via x402 to access Gauntlet's audited verdicts,
  * reasons over substantiation scores, and makes a vendor recommendation.
  *
  * Guild handles: auth, session logging, governed audit trail.
  * Every procurement decision is a logged Guild session — full reasoning trace.
  *
  * Deploy:
- *   guild agent init --name sentinel-buyer-agent --template LLM
+ *   guild agent init --name gauntlet-buyer-agent --template LLM
  *   # paste this file's contents
- *   guild agent save --message "Sentinel buyer agent v1" --wait --publish
+ *   guild agent save --message "Gauntlet buyer agent v1" --wait --publish
  */
 
 import { z } from "zod";
@@ -26,14 +26,14 @@ const InputSchema = z.object({
     .array(z.string())
     .optional()
     .describe("Buyer priorities, e.g. ['security', 'integrations', 'ai_features']."),
-  sentinel_api_url: z
+  gauntlet_api_url: z
     .string()
-    .default("https://sentinel.onrender.com")
-    .describe("Base URL of the Sentinel API."),
+    .default("https://gauntlet.onrender.com")
+    .describe("Base URL of the Gauntlet API."),
   max_spend_usd: z
     .number()
     .default(0.01)
-    .describe("Maximum USD to spend on verdict fetch (matches Sentinel's x402 price)."),
+    .describe("Maximum USD to spend on verdict fetch (matches Gauntlet's x402 price)."),
 });
 
 // ── Output schema ─────────────────────────────────────────────────────────────
@@ -63,11 +63,11 @@ const OutputSchema = z.object({
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Sentinel's buyer agent. You are an autonomous procurement
+const SYSTEM_PROMPT = `You are Gauntlet's buyer agent. You are an autonomous procurement
 agent that refuses to trust vendor marketing copy. You only trust audited verdicts.
 
 Your mission:
-1. Hit the Sentinel API to fetch audited verdicts for a software category.
+1. Hit the Gauntlet API to fetch audited verdicts for a software category.
 2. The endpoint requires payment — you receive an HTTP 402 with a quote.
 3. Pay $0.01 USDC on Base L2 via x402, retry with the transaction hash.
 4. Receive the full verdict JSON.
@@ -87,9 +87,9 @@ Output format:
 // ── Agent definition ──────────────────────────────────────────────────────────
 
 export default {
-  name: "sentinel-buyer-agent",
+  name: "gauntlet-buyer-agent",
   description:
-    "Autonomous procurement agent. Fetches Sentinel verdicts via x402 micropayment, " +
+    "Autonomous procurement agent. Fetches Gauntlet verdicts via x402 micropayment, " +
     "reasons over substantiation scores, and recommends a vendor. " +
     "Every session is logged by Guild with full reasoning trace.",
   input: InputSchema,
@@ -106,7 +106,7 @@ export default {
     const intentParam = input.intent?.length
       ? `?intent=${input.intent.join(",")}`
       : "";
-    const verdictUrl = `${input.sentinel_api_url}/api/market/${input.category}/verdicts${intentParam}`;
+    const verdictUrl = `${input.gauntlet_api_url}/api/market/${input.category}/verdicts${intentParam}`;
 
     // Step 1 — hit the verdict endpoint, expect 402
     let res = await ctx.fetch(verdictUrl);
@@ -125,7 +125,7 @@ export default {
     }
 
     if (!res.ok) {
-      throw new Error(`Sentinel API returned ${res.status}`);
+      throw new Error(`Gauntlet API returned ${res.status}`);
     }
 
     const data = await res.json();

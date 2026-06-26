@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { SentinelLogo } from './components/SentinelLogo'
+import { GauntletLogo } from './components/GauntletLogo'
 import { StatusStrip } from './components/StatusStrip'
 import { ActivityFeed } from './components/ActivityFeed'
 import { GlassCard } from './components/GlassCard'
@@ -666,7 +666,7 @@ function GauntletWorkbench({ apiBase, onBack }: { apiBase: string; onBack: () =>
             </div>
             <h1 style={{ margin: '4px 0 0', fontSize: 42, letterSpacing: '-0.035em' }}>Vet an agent before hiring it</h1>
           </div>
-          <button className="pill" onClick={onBack} style={{ height: 36, fontSize: 12 }}>Sentinel view</button>
+          <button className="pill" onClick={onBack} style={{ height: 36, fontSize: 12 }}>Gauntlet view</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 390px) 1fr', gap: 18, alignItems: 'start' }}>
@@ -798,7 +798,7 @@ function GauntletWorkbench({ apiBase, onBack }: { apiBase: string; onBack: () =>
 }
 
 export default function App() {
-  const [view, setView] = useState<'sentinel' | 'gauntlet'>('sentinel')
+  const [view, setView] = useState<'gauntlet' | 'gauntlet'>('gauntlet')
   const [customText, setCustomText] = useState('')
   const [customError, setCustomError] = useState('')
   const [phase, setPhase] = useState<Phase>('idle')
@@ -918,7 +918,7 @@ export default function App() {
 
   useEffect(() => () => stopTimers(), [stopTimers])
 
-  // Subscribe to the global activity stream so sentinel_reaudit_done can refresh
+  // Subscribe to the global activity stream so gauntlet_reaudit_done can refresh
   // the leaderboard scores in place (the demo moment). One consumer per app —
   // ActivityFeed has its own subscription; this is the second, dedicated to
   // re-poll-on-reaudit. Both reuse the same EventSource pattern as /audit.
@@ -927,7 +927,7 @@ export default function App() {
     const onActivity = (ev: MessageEvent) => {
       try {
         const data = JSON.parse(ev.data) as { stage: string; vendor: string | null }
-        if (data.stage === 'sentinel_reaudit_done') {
+        if (data.stage === 'gauntlet_reaudit_done') {
           // Bump tick so the visible vendor card re-fetches its score.
           setReauditTick(t => t + 1)
         }
@@ -937,14 +937,14 @@ export default function App() {
     return () => { es.removeEventListener('activity', onActivity); es.close() }
   }, [])
 
-  // When a sentinel re-audit completes, pull fresh vendor scores from
-  // /sentinel/status (the watcher's MarketResult mirror).
+  // When a gauntlet re-audit completes, pull fresh vendor scores from
+  // /gauntlet/status (the watcher's MarketResult mirror).
   useEffect(() => {
     if (reauditTick === 0) return
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`${API_BASE}/sentinel/status`)
+        const res = await fetch(`${API_BASE}/gauntlet/status`)
         if (!res.ok) return
         const data = await res.json() as { market: { claim_inflation_index: number } }
         if (cancelled) return
@@ -971,7 +971,7 @@ export default function App() {
   }
 
   if (view === 'gauntlet') {
-    return <GauntletWorkbench apiBase={API_BASE} onBack={() => setView('sentinel')} />
+    return <GauntletWorkbench apiBase={API_BASE} onBack={() => setView('gauntlet')} />
   }
 
   if (phase === 'idle') {
@@ -983,7 +983,7 @@ export default function App() {
       }}>
         <div style={{ maxWidth: 660, width: '100%', textAlign: 'center' }}>
           <div className="reveal-up d-0" style={{ marginBottom: 18, color: 'var(--accent)' }}>
-            <SentinelLogo size={84} />
+            <GauntletLogo size={84} />
           </div>
           <h1 className="reveal-up d-1 headline-fade" style={{
             fontFamily: 'var(--font-sans)',
@@ -991,7 +991,7 @@ export default function App() {
             fontWeight: 700, letterSpacing: '-0.055em', lineHeight: 1,
             margin: 0, marginBottom: 18,
           }}>
-            Sentinel
+            Gauntlet
           </h1>
 
           <div className="reveal-up d-2" style={{

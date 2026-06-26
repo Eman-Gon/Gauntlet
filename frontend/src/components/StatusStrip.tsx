@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { SentinelLogo } from './SentinelLogo'
+import { GauntletLogo } from './GauntletLogo'
 
 interface WatchVendor {
   vendor: string
@@ -9,7 +9,7 @@ interface WatchVendor {
   observed: boolean
 }
 
-interface SentinelStatus {
+interface GauntletStatus {
   watching: number
   watch_enabled: boolean
   watch_interval_s: number
@@ -41,16 +41,16 @@ export function StatusStrip({
   publishedCount: number
   paidCount: number
 }) {
-  const [status, setStatus] = useState<SentinelStatus | null>(null)
+  const [status, setStatus] = useState<GauntletStatus | null>(null)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
     let alive = true
     const poll = async () => {
       try {
-        const res = await fetch(`${apiBase}/sentinel/status`)
+        const res = await fetch(`${apiBase}/gauntlet/status`)
         if (!res.ok) return
-        const data: SentinelStatus = await res.json()
+        const data: GauntletStatus = await res.json()
         if (alive) setStatus(data)
       } catch { /* ignore */ }
     }
@@ -91,14 +91,14 @@ export function StatusStrip({
         display: 'flex', alignItems: 'center', gap: 12, minWidth: 220,
       }}>
         <div style={{ color: 'var(--accent)' }}>
-          <SentinelLogo size={26} />
+          <GauntletLogo size={26} />
         </div>
         <div>
           <div className="headline-fade" style={{
             fontFamily: 'var(--font-sans)', fontSize: 19, fontWeight: 700,
             letterSpacing: '-0.03em', lineHeight: 1,
           }}>
-            Sentinel
+            Gauntlet
           </div>
           <div style={{
             fontSize: 10.5, color: 'var(--muted)', marginTop: 4,
@@ -198,7 +198,7 @@ function CounterCell({
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         {pulse && (
-          <span className="sentinel-pulse" style={{
+          <span className="gauntlet-pulse" style={{
             display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
             background: 'var(--accent)',
           }} />

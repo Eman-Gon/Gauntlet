@@ -14,15 +14,15 @@
 
 **Framing.** Everyone at this event is shipping agents "for hire." AgentBox lists them, but a buyer staring at a listing has almost nothing to go on: no ratings, no reliability history, only an infrastructure "Verified" badge that checks who published the agent and where it runs, not whether it actually works. Gauntlet fills that gap. It is the agent you hire to vet the agent you are about to hire.
 
-**The pivot from our prior work, in one line:** Receipts and Sentinel audited marketing CLAIMS on a page; Gauntlet audits agent BEHAVIOR under live probing, and accumulates the results into a reputation that compounds.
+**The pivot from our prior work, in one line:** Receipts and Gauntlet audited marketing CLAIMS on a page; Gauntlet audits agent BEHAVIOR under live probing, and accumulates the results into a reputation that compounds.
 
 ---
 
 ## 1. HONESTY PROTOCOL (non-negotiable)
 
-The audit ENGINE is not new. The pipeline (ingest, extract, hunt, judge, advise, score), the cost-aware cascade, the Pydantic schemas, the SSE telemetry, the liquid-glass dashboard, and the watch-loop concept were all built earlier this month at two prior events: Receipts (June 10) and Sentinel (June 12). We do not hide this.
+The audit ENGINE is not new. The pipeline (ingest, extract, hunt, judge, advise, score), the cost-aware cascade, the Pydantic schemas, the SSE telemetry, the liquid-glass dashboard, and the watch-loop concept were all built earlier this month at two prior events: Receipts (June 10) and Gauntlet (June 12). We do not hide this.
 
-If asked: "The audit engine and live dashboard come from our prior projects Receipts and Sentinel. What we built today is the agent-probing layer, the behavioral verdicts, the reputation and memory layer that makes the score compound, the reliability report, and the AgentBox packaging. We re-pointed an engine that audited marketing claims into one that audits agents."
+If asked: "The audit engine and live dashboard come from our prior projects Receipts and Gauntlet. What we built today is the agent-probing layer, the behavioral verdicts, the reputation and memory layer that makes the score compound, the reliability report, and the AgentBox packaging. We re-pointed an engine that audited marketing claims into one that audits agents."
 
 - **CHECK BETA FUND'S PRIOR-CODE AND PRE-BUILD RULES AT CHECK-IN.** If reused code must be disclosed, disclose it in the submission text. If all project code must be written during the event, treat tonight strictly as environment setup and engine porting (reused code only), and build every NEW feature on-site. The story is a launch trajectory across three events, not a cover-up.
 - Everything demoed is real: real probes against a real target agent, real verdicts, real persisted memory, real reliability endpoint. No mocks, no staged responses, no quiet fallbacks.
@@ -32,7 +32,7 @@ If asked: "The audit engine and live dashboard come from our prior projects Rece
 
 ## 2. WHAT'S NEW TODAY vs WHAT'S REUSED
 
-### Reused (port from the Sentinel and Receipts repos, attribute in README)
+### Reused (port from the Gauntlet and Receipts repos, attribute in README)
 
 - `backend/app/pipeline/` : ingest, extract, hunt, judge, advise, orchestrator, red_flag (re-pointed, see Section 3)
 - `backend/app/` : schemas.py, scoring.py, cache.py, telemetry.py, config.py, clients.py (cascade), server.py (extended)
@@ -53,7 +53,7 @@ If asked: "The audit engine and live dashboard come from our prior projects Rece
 | **Reliability endpoint (THE MARKETPLACE PRIMITIVE)** | `GET /agent/{id}/reliability` returns the current score and report as JSON. This is what other hireable agents or buyers call BEFORE hiring. Gauntlet is itself a hireable agent that exposes trust about other agents. |
 | **AgentBox packaging** | Dockerfile and listing config so Gauntlet deploys as a container and lists on AgentBox as a hireable agent. Mandatory integration for the event. |
 | **Buyer-agent demo (THE STAR)** | A standalone agent tasked to hire a worker agent. Before committing, it calls Gauntlet's reliability endpoint, reads the report, and refuses to hire the agent that failed the gauntlet, choosing the one that passed. The agentic-trust thesis made concrete in one decision. |
-| **Controllable target agent** | A fictional worker agent we control (mirrors Sentinel's Nimbus test vendor) so we can make it fail a probe live on stage and watch the score drop and the grudge form, without trashing any real company's agent. |
+| **Controllable target agent** | A fictional worker agent we control (mirrors Gauntlet's Nimbus test vendor) so we can make it fail a probe live on stage and watch the score drop and the grudge form, without trashing any real company's agent. |
 
 ---
 
@@ -124,7 +124,7 @@ Banned in UI copy: "bad agent," "scam," "liar," "fraud," "broken." We describe b
 
 ### PRE-EVENT (tonight, about 3 person-hrs, SETUP and PORT only, see the rule check above)
 
-- **[P-A]** New repo `gauntlet`. Copy reusable files from Sentinel and Receipts, rename, boot backend and frontend, flag honest_ad OFF, add the README attribution line, port the .glass tokens. Acceptance: a reused audit sweep still runs end-to-end on the stand-in tier.
+- **[P-A]** New repo `gauntlet`. Copy reusable files from Gauntlet and Receipts, rename, boot backend and frontend, flag honest_ad OFF, add the README attribution line, port the .glass tokens. Acceptance: a reused audit sweep still runs end-to-end on the stand-in tier.
 - **[P-B]** Confirm the AgentBox account and the Docker deploy path end-to-end with a hello-world container. Read the AgentBox listing flow. Acceptance: a trivial container lists or deploys on AgentBox.
 
 ### ON-SITE (10:30 AM to 3:30 PM, about 12 person-hrs across 2 people)
@@ -147,7 +147,7 @@ Banned in UI copy: "bad agent," "scam," "liar," "fraud," "broken." We describe b
 ### CUT-LINE LOGIC (protect the demo, drop breadth)
 
 - **FLOOR (must ship):** 01, 02, 03, 06, 07, plus a minimal version of 08. This is the whole thesis: probe an agent, score it, expose the score, make a buyer agent decide on it. If only this ships, you still have a complete, honest, audience-legible product.
-- **THE MOAT:** 04 (memory and grudge) plus 05 (controllable fail). This is what makes it more than a one-shot eval and what separates it from Sentinel. Protect this second only to the floor. The "it remembers, harder gauntlet" beat is the differentiator the audience remembers.
+- **THE MOAT:** 04 (memory and grudge) plus 05 (controllable fail). This is what makes it more than a one-shot eval and what separates it from Gauntlet. Protect this second only to the floor. The "it remembers, harder gauntlet" beat is the differentiator the audience remembers.
 - **THE SPINE:** 08 (live feed UI). The demo's visual backbone. A thin but real version beats a rich fake one.
 - **BREADTH:** 09 (AgentBox live deploy) is the track's mandatory integration, so do not skip the listing. If the full managed deploy is flaky on venue wifi, a recorded or standby deploy plus a live local run is the fallback. Confirm the integration requirement's strictness at kickoff.
 - **MANDATORY:** 11. Record by 3:45 LATEST. A submitted imperfect video beats a perfect unsubmitted one.
@@ -171,7 +171,7 @@ Banned in UI copy: "bad agent," "scam," "liar," "fraud," "broken." We describe b
 
 ## 6. ENV VARS / SETUP
 
-**Boot contract (mirrors Sentinel):** only the model and search keys are required to start. Everything else degrades gracefully and is never a boot dependency.
+**Boot contract (mirrors Gauntlet):** only the model and search keys are required to start. Everything else degrades gracefully and is never a boot dependency.
 
 ```bash
 # inference (required)
@@ -214,8 +214,8 @@ HONEST_AD_ENABLED=false       # Magnific OFF, not a sponsor here
 ## 7. REPO & WORKSPACE PLAN
 
 - New public GitHub repo: `gauntlet` (likely required for submission, confirm Beta Fund's submission mechanics at check-in).
-- Local: same machine, new folder. Copy reusable files in; do NOT clone Sentinel's git history. Fresh repo, clean commits.
-- Attribution in README: "Audit engine, cascade, telemetry, and dashboard adapted from our prior projects Receipts (June 10) and Sentinel (June 12). The agent-probing layer, behavioral verdicts, reputation and memory layer, reliability report, and AgentBox packaging were built today at the Beta Fund AI Agents for Hire Hackathon (June 26)."
+- Local: same machine, new folder. Copy reusable files in; do NOT clone Gauntlet's git history. Fresh repo, clean commits.
+- Attribution in README: "Audit engine, cascade, telemetry, and dashboard adapted from our prior projects Receipts (June 10) and Gauntlet (June 12). The agent-probing layer, behavioral verdicts, reputation and memory layer, reliability report, and AgentBox packaging were built today at the Beta Fund AI Agents for Hire Hackathon (June 26)."
 - `.env` NEVER committed; `.env.example` with every var blank.
 - Commit rhythm: per dispatch, working state only. Demo-hardening over code-health ceremony.
 
@@ -247,7 +247,7 @@ gauntlet/
 
 ---
 
-## 8. DISCIPLINE CARRY-OVERS (from Sentinel, still binding)
+## 8. DISCIPLINE CARRY-OVERS (from Gauntlet, still binding)
 
 - **Build everything, show one thing:** the vet-then-hire decision is the demo; everything else is one flash.
 - **Evidence, not opinion:** report what the agent DID under probing; banned vocabulary stays banned; vet only the fictional agent live. Near-zero defamation surface.
@@ -290,12 +290,12 @@ CHEAP_MODEL=
 
 ---
 
-## ON "ISN'T THIS JUST SENTINEL AGAIN?" (say it before a judge does)
+## ON "ISN'T THIS JUST GAUNTLET AGAIN?" (say it before a judge does)
 
 It is the same audit engine pointed at a different object, and we disclose that. The new product is genuinely different on three axes:
 
-1. **Object:** Sentinel audited marketing CLAIMS (static text on a page). Gauntlet audits agent BEHAVIOR (a live, running agent under probing).
-2. **Memory:** Sentinel issued one-shot verdicts for citation. Gauntlet accumulates a reputation that compounds across sessions and escalates scrutiny on prior failure. The grudge layer is new code and a new idea.
-3. **Surface:** Sentinel got paid per citation via x402. Gauntlet is a hireable vetting agent on AgentBox whose reliability endpoint other agents call before hiring. Different business, different platform, different primitive.
+1. **Object:** Gauntlet audited marketing CLAIMS (static text on a page). Gauntlet audits agent BEHAVIOR (a live, running agent under probing).
+2. **Memory:** Gauntlet issued one-shot verdicts for citation. Gauntlet accumulates a reputation that compounds across sessions and escalates scrutiny on prior failure. The grudge layer is new code and a new idea.
+3. **Surface:** Gauntlet got paid per citation via x402. Gauntlet is a hireable vetting agent on AgentBox whose reliability endpoint other agents call before hiring. Different business, different platform, different primitive.
 
 Owning the lineage out loud reads as a deliberate launch trajectory across three events. Letting someone discover it reads as a rebrand. Always choose the former.

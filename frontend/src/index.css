@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   Sentinel — design language.
+   Gauntlet — design language.
    Deep near-black liquid glass · monochrome-first · ONE indigo→cyan accent ·
    desaturated verdict palette · big quiet tabular numerals · motion only on
    real events. The aesthetic is a status console, not a SaaS landing page.
@@ -207,14 +207,14 @@ html, body, #root {
 .d-7 { animation-delay: 1.26s;   }
 .d-8 { animation-delay: 1.44s;   }
 
-/* ── Sentinel breathing pulse — bound only to the WATCHING dot when the
+/* ── Gauntlet breathing pulse — bound only to the WATCHING dot when the
    watcher task is actually running. Not decoration. */
-@keyframes sentinel-pulse {
+@keyframes gauntlet-pulse {
   0%, 100% { opacity: 0.55; transform: scale(1); }
   50%      { opacity: 1;    transform: scale(1.18); }
 }
-.sentinel-pulse {
-  animation: sentinel-pulse 2.2s ease-in-out infinite;
+.gauntlet-pulse {
+  animation: gauntlet-pulse 2.2s ease-in-out infinite;
   box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.18);
 }
 

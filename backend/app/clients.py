@@ -39,7 +39,7 @@ from openai import AsyncOpenAI
 from app.config import cheap_effective_api_key, settings
 
 
-log = logging.getLogger("sentinel.clients")
+log = logging.getLogger("gauntlet.clients")
 
 
 Tier = Literal["cheap", "premium"]

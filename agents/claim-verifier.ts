@@ -1,5 +1,5 @@
 /**
- * Sentinel Claim Verifier — Guild Agent (D06)
+ * Gauntlet Claim Verifier — Guild Agent (D06)
  *
  * Judges a single atomic marketing claim against public evidence snippets
  * and returns a structured verdict. Invoked once per claim during every audit.
@@ -8,9 +8,9 @@
  * No API keys in this file — the control plane injects them.
  *
  * Deploy:
- *   guild agent init --name sentinel-claim-verifier --template LLM
+ *   guild agent init --name gauntlet-claim-verifier --template LLM
  *   # paste this file's contents into the scaffolded agent.ts
- *   guild agent save --message "Sentinel claim verifier v1" --wait --publish
+ *   guild agent save --message "Gauntlet claim verifier v1" --wait --publish
  */
 
 import { z } from "zod";
@@ -39,7 +39,7 @@ const InputSchema = z.object({
 const OutputSchema = z.object({
   verdict: z
     .enum(["PUBLICLY_SUBSTANTIATED", "SELF_REPORTED_ONLY", "NO_PUBLIC_RECEIPT_FOUND"])
-    .describe("Sentinel verdict — measures public substantiation, never truth."),
+    .describe("Gauntlet verdict — measures public substantiation, never truth."),
   confidence: z
     .number()
     .min(0)
@@ -58,7 +58,7 @@ const OutputSchema = z.object({
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Sentinel's claim verifier. Your job is to judge a single
+const SYSTEM_PROMPT = `You are Gauntlet's claim verifier. Your job is to judge a single
 marketing claim against public evidence retrieved from the web.
 
 VERDICT RULES — use exactly one:
@@ -70,7 +70,7 @@ VERDICT RULES — use exactly one:
   This is NOT the same as "false" — absence of receipt is a valid, neutral verdict.
 
 BANNED WORDS — never use: Verified, Unverified, Unsupported, False, True.
-These imply truth judgments. Sentinel measures public substantiation only.
+These imply truth judgments. Gauntlet measures public substantiation only.
 
 CONFIDENCE:
 - High (0.8–1.0): multiple independent sources clearly confirm/contradict
@@ -82,7 +82,7 @@ Respond with valid JSON matching the output schema. Nothing else.`;
 // ── Agent definition ──────────────────────────────────────────────────────────
 
 export default {
-  name: "sentinel-claim-verifier",
+  name: "gauntlet-claim-verifier",
   description:
     "Judges a single atomic marketing claim against public web evidence. " +
     "Returns PUBLICLY_SUBSTANTIATED / SELF_REPORTED_ONLY / NO_PUBLIC_RECEIPT_FOUND " +

@@ -1,5 +1,5 @@
 -- D08 demo queries — run live during the demo against ClickHouse Cloud.
--- Sentinel telemetry lands in `telemetry`; Airbyte syncs external context into
+-- Gauntlet telemetry lands in `telemetry`; Airbyte syncs external context into
 -- its own tables in the same warehouse, so both sit side by side.
 
 -- 1) Escalation rate by run — the Pioneer adaptive-inference story.

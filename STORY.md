@@ -1,4 +1,4 @@
-# Sentinel — Project Story
+# Gauntlet — Project Story
 
 > **Autonomous burden of proof for the agentic web.**
 
@@ -19,7 +19,7 @@ what those pages tell them.
 We wanted to build the missing layer: a system that treats every vendor claim as
 a **burden of proof**, hunts for public evidence, renders a verdict an agent can
 cite, and — crucially — keeps doing it *without a human in the loop*. If the
-agentic web is going to transact, it needs machine-readable trust. Sentinel
+agentic web is going to transact, it needs machine-readable trust. Gauntlet
 produces it, keeps it fresh, and gets paid per fetch for the service.
 
 One principle anchored the whole project: **we measure public substantiation,
@@ -33,7 +33,7 @@ them up.
 
 ## What it does
 
-Sentinel watches the marketing pages of every vendor in a category. When a claim
+Gauntlet watches the marketing pages of every vendor in a category. When a claim
 changes, it re-audits that vendor against public evidence on a self-improving
 inference cascade, publishes the structured result to **cited.md** where other
 agents can read it, and charges those agents per fetch via **x402**.
@@ -67,7 +67,7 @@ $$I = 1 - \frac{1}{N}\sum_{v=1}^{N} S_v$$
 loop** that ticks every `WATCH_INTERVAL_S`, re-fetches each vendor page,
 `sha256`-diffs it against the last snapshot, and fires an autonomous re-audit on
 any change. A React + Vite frontend renders a dark "liquid-glass" dashboard whose
-status strip polls `/sentinel/status` and whose activity feed subscribes to
+status strip polls `/gauntlet/status` and whose activity feed subscribes to
 `/activity/stream` over SSE — so the entire autonomous loop is visible in real
 time. **Motion only fires on real events**; nothing on the screen is decorative.
 
@@ -123,7 +123,7 @@ into the same warehouse for leaderboard analytics.
 
 ## Challenges we faced
 
-- **Real autonomy needs a controllable stunt.** To demo "claim changes → Sentinel
+- **Real autonomy needs a controllable stunt.** To demo "claim changes → Gauntlet
   notices → re-audits → republishes" live, we couldn't wait for a real vendor to
   edit their site. We built a fictional, controllable test vendor
   (`/test-vendor/nimbus`) we can mutate on stage to trigger the autonomous
@@ -137,7 +137,7 @@ into the same warehouse for leaderboard analytics.
   `geo_question_id` schema requirement in the publisher's onboarding flow, which
   we deliberately chose not to force during the hack. Knowing *when not to ship a
   half-integration* was its own discipline.
-- **Scope under a clock.** Sentinel's audit engine was adapted from our prior
+- **Scope under a clock.** Gauntlet's audit engine was adapted from our prior
   project **Receipts**; everything in the autonomy, inference-cascade, publish,
   and payment layers was built in a single day at **Harness Engineering Hack**
   (June 12, 2026 · AWS Builder Loft SF). Deciding what to wire as a *seam* (ready

@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       '/audit': 'http://localhost:8010',
       '/healthz': 'http://localhost:8010',
-      '/sentinel': 'http://localhost:8010',
+      '/gauntlet': 'http://localhost:8010',
       '/activity': { target: 'http://localhost:8010', changeOrigin: true, ws: false },
       '/test-vendor': 'http://localhost:8010',
       '/interrogate': 'http://localhost:8010',

@@ -20,7 +20,7 @@ from app.config import settings
 from app.schemas import MarketResult, Verdict
 
 
-log = logging.getLogger("sentinel.publish")
+log = logging.getLogger("gauntlet.publish")
 
 _SENSO_BASE = "https://apiv2.senso.ai/api/v1"
 
@@ -31,7 +31,7 @@ def _format_audit_markdown(market: MarketResult) -> str:
     category_slug = market.category.lower().replace(" ", "-")
 
     lines: list[str] = [
-        f"# Sentinel Audit: {market.category}",
+        f"# Gauntlet Audit: {market.category}",
         f"",
         f"**Audited:** {ts}  ",
         f"**Methodology:** We measure *public substantiation*, never truth.  ",
@@ -105,9 +105,9 @@ def _format_audit_markdown(market: MarketResult) -> str:
     lines += [
         "---",
         "",
-        f"## About Sentinel",
+        f"## About Gauntlet",
         "",
-        "Sentinel autonomously audits software vendor marketing pages, verifies every "
+        "Gauntlet autonomously audits software vendor marketing pages, verifies every "
         "claim against public evidence via a cost-aware inference cascade, and publishes "
         "machine-readable trust data that AI agents can access via micropayment.",
         "",
@@ -135,7 +135,7 @@ async def publish(market: MarketResult) -> Optional[str]:
 
     markdown = _format_audit_markdown(market)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M")
-    title = f"{ts} — Sentinel Audit: {market.category}"
+    title = f"{ts} — Gauntlet Audit: {market.category}"
     category_slug = market.category.lower().replace(" ", "-")
 
     try:
@@ -156,7 +156,7 @@ async def publish(market: MarketResult) -> Optional[str]:
 
             data = resp.json()
             kb_node_id = data.get("kb_node_id", "")
-            url = f"https://cited.md/sentinel/{category_slug}"
+            url = f"https://cited.md/gauntlet/{category_slug}"
             log.warning(
                 "publish OK: kb_node_id=%s category=%s url=%s",
                 kb_node_id,

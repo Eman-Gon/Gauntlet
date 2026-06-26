@@ -2,10 +2,10 @@
 
 Flow:
   1. Agent hits GET /api/market/{category}/verdicts with no payment header.
-  2. Sentinel returns HTTP 402 + JSON payment quote.
+  2. Gauntlet returns HTTP 402 + JSON payment quote.
   3. Agent pays $0.01 USDC on Base L2.
   4. Agent retries with X-Payment: <txn_hash> header.
-  5. Sentinel verifies the hash (format + not replayed), returns 200 + verdict JSON.
+  5. Gauntlet verifies the hash (format + not replayed), returns 200 + verdict JSON.
 
 On-chain verification: in production, calls a Base L2 RPC node to confirm
 amount, recipient, and finality. For the hackathon demo the hash format check
@@ -72,7 +72,7 @@ def build_quote(category: str) -> dict:
         ],
         "error": "Payment required",
         "resource": f"/api/market/{category}/verdicts",
-        "description": f"Sentinel verdict access: {category} — ${settings.X402_PRICE_USD:.2f} USDC",
+        "description": f"Gauntlet verdict access: {category} — ${settings.X402_PRICE_USD:.2f} USDC",
         "expires_at": expires_at,
     }
 
@@ -155,5 +155,5 @@ async def verify_payment(txn_hash: str, category: str) -> tuple[bool, str]:
 def demo_hash_for(category: str) -> str:
     """Generate a deterministic fake hash for local demo/testing.
     Only accepted when X402_PAY_TO is unset (no real wallet configured)."""
-    raw = f"sentinel-demo-{category}-{int(time.time() // 60)}"
+    raw = f"gauntlet-demo-{category}-{int(time.time() // 60)}"
     return "0x" + hashlib.sha256(raw.encode()).hexdigest()
