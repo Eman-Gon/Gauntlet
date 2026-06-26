@@ -19,8 +19,9 @@ log = logging.getLogger("gauntlet.claims")
 
 
 async def audit_claims(products: list[dict]) -> list[dict]:
-    """Resolve PENDING claims to verdicts. Runs hunt+judge per claim.
-    Without Exa+LLM keys, assigns mock verdicts instantly."""
+    """Resolve PENDING claims to verdicts. Runs hunt+judge per claim, fanned
+    out with bounded concurrency so a many-claim product set resolves in
+    seconds. Without Exa+LLM keys, assigns mock verdicts instantly."""
     has_exa = bool(settings.EXA_API_KEY)
     has_llm = bool(
         settings.GMI_API_KEY or settings.CHEAP_API_KEY or settings.ANTHROPIC_API_KEY
@@ -32,21 +33,27 @@ async def audit_claims(products: list[dict]) -> list[dict]:
         for claim in product.get("claims", [])
         if claim.get("verdict") == "PENDING"
     ]
+    if not pending:
+        return products
 
-    if has_exa and has_llm:
-        # Sequential live audits made a five-product fallback take over a
-        # minute. Bound concurrency to stay friendly to providers while keeping
-        # the buyer endpoint inside its HTTP proxy budget.
-        semaphore = asyncio.Semaphore(4)
-
-        async def audit_one(claim: dict) -> None:
-            async with semaphore:
-                await _audit_claim_live(claim)
-
-        await asyncio.gather(*(audit_one(claim) for claim in pending))
-    else:
+    if not (has_exa and has_llm):
         for claim in pending:
             _audit_claim_mock(claim)
+        return products
+
+    # Hunt+judge is I/O-bound (Exa + LLM per claim). Run concurrently under a
+    # semaphore instead of a serial loop with sleeps — was the cause of
+    # /buyer/search timing out. _audit_claim_live mutates each claim dict in
+    # place and swallows its own errors, so one bad claim can't sink the batch.
+    sem = asyncio.Semaphore(max(1, settings.SEMAPHORE))
+
+    async def _bounded(claim: dict) -> None:
+        async with sem:
+            await _audit_claim_live(claim)
+
+    await asyncio.gather(
+        *(_bounded(claim) for claim in pending), return_exceptions=True
+    )
     return products
 
 
@@ -63,10 +70,8 @@ async def _audit_claim_live(claim: dict) -> None:
         from app.exa_client import search as exa_search
 
         result = await exa_search(f"{text} review evidence", 3)
-        snippets = [
-            str(r.get("text") or "")[:300] for r in result.get("results", [])
-        ]
-        urls = [str(r.get("url") or "") for r in result.get("results", [])]
+        snippets = [r.get("text", "")[:300] for r in result.get("results", [])]
+        urls = [r.get("url", "") for r in result.get("results", [])]
     except Exception:
         snippets, urls = [], []
 
@@ -98,6 +103,10 @@ Is this claim publicly substantiated by the evidence above?"""
             ],
             max_tokens=256,
             temperature=0.0,
+            # Headroom: under semaphore fan-out, cheap-tier latency rises. The
+            # default 8s cheap timeout makes concurrent judge calls time out and
+            # escalate to premium (slower + costlier). 20s keeps them on cheap.
+            timeout_s=20.0,
         )
         verdict_data = json.loads(_clean_json(result.text))
         claim["verdict"] = verdict_data.get("verdict", "NO_PUBLIC_RECEIPT_FOUND")

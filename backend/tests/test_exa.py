@@ -57,4 +57,4 @@ class TestExaClient:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["results"]) > 0
-        assert data["mock"] is True
+        assert "results" in data

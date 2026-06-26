@@ -8,10 +8,6 @@ import { GlassCard } from "./components/GlassCard";
 import { ShopperPanel } from "./components/ShopperPanel";
 import { API_BASE } from "./lib/api";
 
-// Backend API base. Empty string keeps Next rewrites working locally
-// (relative /audit hits BACKEND_URL, default localhost:8000). Production can
-// call the backend directly by setting NEXT_PUBLIC_API_URL at build time.
-
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface TelemetryEvent {
@@ -142,24 +138,6 @@ interface RepairBrief {
   failed_probe_ids: string[];
   inconsistent_probe_ids: string[];
   recommended_repairs: string[];
-}
-
-// Full telemetry event as it arrives over the vet SSE stream / backlog log.
-// Superset of the audit-side TelemetryEvent above — carries ts + payload so
-// the debug panel can render the raw record.
-interface GauntletEvent {
-  ts?: string;
-  stage: string;
-  model: string | null;
-  tokens_in: number;
-  tokens_out: number;
-  latency_ms: number;
-  ttft_ms: number | null;
-  cost_usd: number;
-  escalated: boolean;
-  vendor: string | null;
-  claim_id: string | null;
-  payload?: Record<string, unknown> | null;
 }
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -847,127 +825,6 @@ function probeColor(verdict: ProbeResult["verdict"]) {
   return "var(--verdict-bad)";
 }
 
-function eventVerdict(ev: GauntletEvent): string | null {
-  const v = ev.payload?.verdict;
-  return typeof v === "string" ? v : null;
-}
-
-function eventColor(ev: GauntletEvent): string {
-  const v = eventVerdict(ev);
-  if (v === "PROVEN") return "var(--verdict-good)";
-  if (v === "INCONSISTENT") return "var(--verdict-warn)";
-  if (v === "FAILED") return "var(--verdict-bad)";
-  if (ev.stage === "gauntlet_done" || ev.stage === "gauntlet_started")
-    return "var(--accent)";
-  return "var(--text-2)";
-}
-
-function fmtClock(ts?: string): string {
-  if (!ts) return "--:--:--";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "--:--:--";
-  return d.toLocaleTimeString([], {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
-interface GauntletMetrics {
-  events: number;
-  probesRun: number;
-  cacheHits: number;
-  totalLatencyMs: number;
-  avgProbeMs: number;
-  totalCost: number;
-  totalTokens: number;
-  escalations: number;
-  stageCounts: Record<string, number>;
-}
-
-function deriveMetrics(
-  events: GauntletEvent[],
-  report: ReliabilityReport | null,
-): GauntletMetrics {
-  const probeDone = events.filter((e) => e.stage === "probe_done");
-  const probeLatency = probeDone.reduce((s, e) => s + (e.latency_ms || 0), 0);
-  const cacheHits =
-    events.filter((e) => e.stage === "probe_cache_hit").length +
-    (report?.probe_results.filter((p) => p.cached).length ?? 0);
-  const stageCounts = events.reduce(
-    (acc, e) => {
-      acc[e.stage] = (acc[e.stage] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-  const probesRun = report?.total_probes ?? probeDone.length;
-  return {
-    events: events.length,
-    probesRun,
-    cacheHits,
-    totalLatencyMs: probeLatency,
-    avgProbeMs: probeDone.length ? probeLatency / probeDone.length : 0,
-    totalCost: events.reduce((s, e) => s + (e.cost_usd || 0), 0),
-    totalTokens: events.reduce(
-      (s, e) => s + (e.tokens_in || 0) + (e.tokens_out || 0),
-      0,
-    ),
-    escalations: events.filter((e) => e.escalated).length,
-    stageCounts,
-  };
-}
-
-function MetricTile({
-  label,
-  value,
-  hint,
-  color,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  color?: string;
-}) {
-  return (
-    <div
-      title={hint}
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        padding: "10px 12px",
-        background: "rgba(255,255,255,0.035)",
-        cursor: hint ? "help" : "default",
-      }}
-    >
-      <div
-        style={{
-          color: "var(--muted)",
-          fontSize: 10,
-          textTransform: "uppercase",
-          letterSpacing: "0.1em",
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          marginTop: 4,
-          color: color ?? "var(--text)",
-          fontVariantNumeric: "tabular-nums",
-          letterSpacing: "-0.02em",
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
 function GauntletWorkbench({
   apiBase,
   onBack,
@@ -980,44 +837,10 @@ function GauntletWorkbench({
   const [endpoint, setEndpoint] = useState("http://127.0.0.1:8020/agent");
   const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
-  const [fullEvents, setFullEvents] = useState<GauntletEvent[]>([]);
   const [report, setReport] = useState<ReliabilityReport | null>(null);
   const [history, setHistory] = useState<ReliabilityHistory | null>(null);
   const [repair, setRepair] = useState<RepairBrief | null>(null);
   const [error, setError] = useState("");
-  const [lastRunId, setLastRunId] = useState<string>("");
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [expandedEvent, setExpandedEvent] = useState<number | null>(null);
-  const [backlogNote, setBacklogNote] = useState("");
-
-  const metrics = deriveMetrics(fullEvents, report);
-
-  async function loadBacklog() {
-    if (!lastRunId) return;
-    setBacklogNote("Loading persisted log…");
-    try {
-      const res = await fetch(`${apiBase}/vet/${lastRunId}/log?limit=1000`);
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as {
-        count: number;
-        events: GauntletEvent[];
-      };
-      setFullEvents(data.events);
-      setBacklogNote(`Loaded ${data.count} persisted events for ${lastRunId}`);
-    } catch (err) {
-      setBacklogNote(
-        err instanceof Error ? `Backlog error: ${err.message}` : "Backlog error",
-      );
-    }
-  }
-
-  function copyLog() {
-    const text = JSON.stringify(fullEvents, null, 2);
-    navigator.clipboard?.writeText(text).then(
-      () => setBacklogNote(`Copied ${fullEvents.length} events to clipboard`),
-      () => setBacklogNote("Clipboard unavailable"),
-    );
-  }
 
   async function setTargetMode(mode: "proven" | "flaky" | "failing") {
     setError("");
@@ -1066,9 +889,6 @@ function GauntletWorkbench({
     setBusy(true);
     setError("");
     setEvents([]);
-    setFullEvents([]);
-    setExpandedEvent(null);
-    setBacklogNote("");
     setReport(null);
     setHistory(null);
     setRepair(null);
@@ -1083,16 +903,17 @@ function GauntletWorkbench({
       });
       if (!res.ok) throw new Error(await res.text());
       const accepted = (await res.json()) as {
-        run_id: string;
         stream_url: string;
         results_url: string;
       };
-      setLastRunId(accepted.run_id);
       await new Promise<void>((resolve) => {
         const es = new EventSource(`${apiBase}${accepted.stream_url}`);
         es.addEventListener("telemetry", (e) => {
-          const ev = JSON.parse((e as MessageEvent).data) as GauntletEvent;
-          setFullEvents((prev) => [...prev, ev]);
+          const ev = JSON.parse((e as MessageEvent).data) as {
+            stage: string;
+            claim_id?: string;
+            payload?: Record<string, unknown>;
+          };
           const verdict = ev.payload?.verdict
             ? ` -> ${String(ev.payload.verdict)}`
             : "";
@@ -1600,299 +1421,6 @@ function GauntletWorkbench({
               </GlassCard>
             </div>
 
-            {/* Metrics & usage — derived from the live telemetry stream */}
-            {fullEvents.length > 0 && (
-              <GlassCard padding="18px">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    marginBottom: 12,
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "var(--muted)",
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                    }}
-                  >
-                    Metrics &amp; usage
-                  </div>
-                  {lastRunId && (
-                    <code style={{ color: "var(--muted)", fontSize: 11 }}>
-                      run {lastRunId}
-                    </code>
-                  )}
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-                    gap: 10,
-                  }}
-                >
-                  <MetricTile
-                    label="Probes"
-                    value={String(metrics.probesRun)}
-                    hint="Total probes run in this gauntlet"
-                  />
-                  <MetricTile
-                    label="Total latency"
-                    value={fmtMs(metrics.totalLatencyMs)}
-                    hint="Summed wall-clock latency across every probe call"
-                  />
-                  <MetricTile
-                    label="Avg / probe"
-                    value={fmtMs(metrics.avgProbeMs)}
-                    hint="Mean latency per probe call"
-                  />
-                  <MetricTile
-                    label="Cache hits"
-                    value={String(metrics.cacheHits)}
-                    hint="Probes served from the idempotent probe cache (cheaper re-vets)"
-                    color={
-                      metrics.cacheHits > 0 ? "var(--verdict-good)" : undefined
-                    }
-                  />
-                  <MetricTile
-                    label="Cost"
-                    value={fmtCost(metrics.totalCost)}
-                    hint="Measured inference + tool cost for this run"
-                  />
-                  <MetricTile
-                    label="Tokens"
-                    value={metrics.totalTokens.toLocaleString()}
-                    hint="Total model tokens in + out"
-                  />
-                  <MetricTile
-                    label="Escalations"
-                    value={String(metrics.escalations)}
-                    hint="Cheap-tier calls re-checked by the premium model"
-                    color={
-                      metrics.escalations > 0 ? "var(--accent)" : undefined
-                    }
-                  />
-                  <MetricTile
-                    label="Events"
-                    value={String(metrics.events)}
-                    hint="Telemetry events captured from the run stream"
-                  />
-                </div>
-
-                {/* Per-probe usage table from probe_done events */}
-                <div style={{ marginTop: 14 }}>
-                  <div
-                    style={{
-                      color: "var(--muted)",
-                      fontSize: 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                      fontWeight: 600,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Per-probe usage
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    {fullEvents
-                      .filter((e) => e.stage === "probe_done")
-                      .map((e, i) => (
-                        <div
-                          key={`${e.claim_id}-${i}`}
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr auto auto auto",
-                            gap: 10,
-                            alignItems: "baseline",
-                            fontSize: 11.5,
-                            fontFamily: "var(--font-mono)",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            background: "rgba(255,255,255,0.03)",
-                          }}
-                        >
-                          <span style={{ color: "var(--text-2)" }}>
-                            {e.claim_id}
-                          </span>
-                          <span style={{ color: "var(--muted)" }}>
-                            {String(e.payload?.category ?? "")}
-                          </span>
-                          <span
-                            style={{
-                              color: "var(--muted)",
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {fmtMs(e.latency_ms)}
-                          </span>
-                          <span
-                            style={{
-                              color: eventColor(e),
-                              fontWeight: 700,
-                              textAlign: "right",
-                            }}
-                          >
-                            {eventVerdict(e) ?? "—"}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </GlassCard>
-            )}
-
-            {/* Debug log / backlog — raw telemetry for debugging */}
-            {fullEvents.length > 0 && (
-              <GlassCard padding="18px">
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: debugOpen ? 12 : 0,
-                  }}
-                >
-                  <button
-                    onClick={() => setDebugOpen((x) => !x)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      color: "var(--muted)",
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.12em",
-                      fontWeight: 600,
-                    }}
-                  >
-                    <span style={{ fontSize: 10 }}>{debugOpen ? "▼" : "▶"}</span>
-                    Debug log / backlog ({fullEvents.length})
-                  </button>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {backlogNote && (
-                      <span style={{ color: "var(--muted)", fontSize: 11 }}>
-                        {backlogNote}
-                      </span>
-                    )}
-                    <button
-                      className="pill"
-                      onClick={copyLog}
-                      style={{ height: 28, fontSize: 11 }}
-                    >
-                      Copy JSON
-                    </button>
-                    <button
-                      className="pill"
-                      onClick={loadBacklog}
-                      disabled={!lastRunId}
-                      title="Reload the persisted JSONL log from the server (survives the live stream)"
-                      style={{ height: 28, fontSize: 11 }}
-                    >
-                      Load persisted
-                    </button>
-                  </div>
-                </div>
-                {debugOpen && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 2,
-                      maxHeight: 320,
-                      overflowY: "auto",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 11,
-                    }}
-                  >
-                    {fullEvents.map((ev, i) => {
-                      const open = expandedEvent === i;
-                      return (
-                        <div key={i}>
-                          <button
-                            onClick={() =>
-                              setExpandedEvent((cur) => (cur === i ? null : i))
-                            }
-                            style={{
-                              width: "100%",
-                              textAlign: "left",
-                              background: open
-                                ? "rgba(255,255,255,0.05)"
-                                : "transparent",
-                              border: "none",
-                              borderRadius: 6,
-                              cursor: "pointer",
-                              padding: "4px 8px",
-                              display: "grid",
-                              gridTemplateColumns: "auto 1fr auto auto",
-                              gap: 10,
-                              alignItems: "baseline",
-                            }}
-                          >
-                            <span style={{ color: "var(--muted)" }}>
-                              {fmtClock(ev.ts)}
-                            </span>
-                            <span style={{ color: "var(--text)" }}>
-                              {ev.stage}
-                              {ev.claim_id ? (
-                                <span style={{ color: "var(--muted)" }}>
-                                  {" "}
-                                  / {ev.claim_id}
-                                </span>
-                              ) : null}
-                            </span>
-                            <span
-                              style={{
-                                color: "var(--muted)",
-                                fontVariantNumeric: "tabular-nums",
-                              }}
-                            >
-                              {ev.latency_ms ? fmtMs(ev.latency_ms) : ""}
-                            </span>
-                            <span
-                              style={{
-                                color: eventColor(ev),
-                                fontWeight: 700,
-                                textAlign: "right",
-                              }}
-                            >
-                              {eventVerdict(ev) ?? ""}
-                            </span>
-                          </button>
-                          {open && (
-                            <pre
-                              style={{
-                                margin: "2px 0 6px",
-                                padding: "10px 12px",
-                                background: "rgba(0,0,0,0.35)",
-                                borderRadius: 8,
-                                color: "var(--text-2)",
-                                fontSize: 10.5,
-                                lineHeight: 1.5,
-                                overflowX: "auto",
-                                whiteSpace: "pre-wrap",
-                                wordBreak: "break-word",
-                              }}
-                            >
-                              {JSON.stringify(ev, null, 2)}
-                            </pre>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </GlassCard>
-            )}
-
             {repair && (
               <GlassCard padding="18px">
                 <div
@@ -1987,7 +1515,7 @@ function GauntletWorkbench({
 }
 
 export default function App() {
-  const [view, setView] = useState<"shop" | "vet">("vet");
+  const [view, setView] = useState<"shop" | "vet">("shop");
   const [customText, setCustomText] = useState("");
   const [customError, setCustomError] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");

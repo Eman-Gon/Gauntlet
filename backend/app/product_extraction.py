@@ -17,6 +17,11 @@ from app.shopping_agent import _find_mock_products
 
 log = logging.getLogger("gauntlet.extraction")
 
+# Each claim costs one Exa hunt + one judge call downstream, so unbounded
+# claim counts (models happily emit 10-13/product) make the audit crawl.
+# Cap to the most relevant few — plenty for a buyer-facing comparison card.
+MAX_CLAIMS_PER_PRODUCT = 5
+
 
 async def extract_products(
     query: str,
@@ -57,8 +62,13 @@ async def extract_products(
                 {"role": "system", "content": _EXTRACTION_SYSTEM},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=1024,
+            # 5 products of structured JSON overflow 1024 tokens — a truncated
+            # array fails json.loads and silently degrades to raw cards. 4096
+            # leaves headroom. timeout_s=30 lets the cheap tier finish the
+            # ~5k-token prompt instead of timing out and escalating every call.
+            max_tokens=4096,
             temperature=0.0,
+            timeout_s=30.0,
         )
         products = _parse_extraction_response(result.text)
         if products:
@@ -94,7 +104,7 @@ Return ONLY a valid JSON array. No markdown, no explanation.
 Each element must have exactly these keys:
 - "name": product name (string)
 - "price": price with currency symbol (e.g. "$24.99")
-- "claims": array of checkable factual claims about the product (strings)
+- "claims": array of UP TO 5 of the most specific, checkable claims (strings)
 - "source_url": the URL where this product was found
 
 Include only specific, checkable claims. Skip vague marketing ("best", "amazing").
@@ -135,7 +145,7 @@ def _parse_extraction_response(response: str) -> list[ProductResult]:
             claims = [
                 {"text": str(c), "verdict": "PENDING"} if isinstance(c, str) else c
                 for c in claims
-            ]
+            ][:MAX_CLAIMS_PER_PRODUCT]
         products.append(
             ProductResult(
                 name=str(item.get("name", "Unknown")),
