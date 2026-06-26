@@ -8,6 +8,10 @@ import { GlassCard } from "./components/GlassCard";
 import { ShopperPanel } from "./components/ShopperPanel";
 import { API_BASE } from "./lib/api";
 
+// Backend API base. Empty string keeps Next rewrites working locally
+// (relative /audit hits BACKEND_URL, default localhost:8000). Production can
+// call the backend directly by setting NEXT_PUBLIC_API_URL at build time.
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface TelemetryEvent {
