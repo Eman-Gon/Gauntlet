@@ -186,7 +186,10 @@ async def _gmi_chat(
     timeout: float,
 ) -> ChatResult:
     """Direct httpx call to GMI — bypasses the OpenAI SDK entirely.
-    Uses the same approach as a working requests.post() test."""
+    Uses the same approach as a working requests.post() test.
+    Retries on 429 (rate limit) with exponential backoff."""
+    import asyncio as _asyncio
+
     import httpx
 
     url = _effective_gmi_base_url().rstrip("/") + "/chat/completions"
@@ -200,21 +203,40 @@ async def _gmi_chat(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(url, headers=headers, json=body)
-        resp.raise_for_status()
-        data = resp.json()
-    choice = data["choices"][0] if data.get("choices") else {}
-    msg = choice.get("message", {})
-    text = msg.get("content", "") or ""
-    usage = data.get("usage", {})
-    return ChatResult(
-        text=text,
-        tokens_in=usage.get("prompt_tokens", 0),
-        tokens_out=usage.get("completion_tokens", 0),
-        model=model,
-        tier="cheap",
-    )
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(url, headers=headers, json=body)
+            if resp.status_code == 429:
+                wait = 2.0 * (2**attempt)
+                log.warning(
+                    "GMI 429 rate limit, retrying in %.1fs (attempt %d/3)",
+                    wait,
+                    attempt + 1,
+                )
+                await _asyncio.sleep(wait)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            choice = data["choices"][0] if data.get("choices") else {}
+            msg = choice.get("message", {})
+            text = msg.get("content", "") or ""
+            usage = data.get("usage", {})
+            return ChatResult(
+                text=text,
+                tokens_in=usage.get("prompt_tokens", 0),
+                tokens_out=usage.get("completion_tokens", 0),
+                model=model,
+                tier="cheap",
+            )
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:
+                wait = 1.0 * (2**attempt)
+                log.warning("GMI call failed, retrying in %.1fs: %s", wait, exc)
+                await _asyncio.sleep(wait)
+    raise last_exc  # type: ignore[misc]
 
 
 async def _openai_chat(

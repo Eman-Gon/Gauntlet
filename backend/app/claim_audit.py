@@ -28,10 +28,12 @@ async def audit_claims(products: list[dict]) -> list[dict]:
 
     for product in products:
         claims = product.get("claims", [])
-        for claim in claims:
+        for i, claim in enumerate(claims):
             if claim.get("verdict") != "PENDING":
                 continue
             if has_exa and has_llm:
+                if i > 0:
+                    await asyncio.sleep(0.5)  # rate-limit courtesy gap
                 await _audit_claim_live(claim)
             else:
                 _audit_claim_mock(claim)
