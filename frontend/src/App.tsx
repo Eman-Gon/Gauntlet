@@ -195,10 +195,10 @@ function parseVendorText(raw: string): [string, string][] {
 }
 
 function scoreColor(score: number | null) {
-  if (score === null) return "var(--muted)";
-  if (score >= 0.7) return "var(--verdict-good)";
-  if (score >= 0.4) return "var(--verdict-warn)";
-  return "var(--verdict-bad)";
+  if (score === null) return "#94A3B8";
+  if (score >= 0.7) return "#059669";
+  if (score >= 0.4) return "#D97706";
+  return "#DC2626";
 }
 
 function fmtCost(n: number) {
@@ -824,9 +824,9 @@ function SimulateChangeButton({ apiBase }: { apiBase: string }) {
 }
 
 function probeColor(verdict: ProbeResult["verdict"]) {
-  if (verdict === "PROVEN") return "var(--verdict-good)";
-  if (verdict === "INCONSISTENT") return "var(--verdict-warn)";
-  return "var(--verdict-bad)";
+  if (verdict === "PROVEN") return "#059669";
+  if (verdict === "INCONSISTENT") return "#D97706";
+  return "#DC2626";
 }
 
 function GauntletWorkbench({
@@ -836,6 +836,26 @@ function GauntletWorkbench({
   apiBase: string;
   onBack: () => void;
 }) {
+  const T = {
+    bg: "#FAFAFA",
+    surface: "#FFFFFF",
+    border: "#E2E8F0",
+    text: "#0F172A",
+    text2: "#475569",
+    muted: "#94A3B8",
+    accent: "#0052FF",
+    accentGrad: "linear-gradient(135deg, #0052FF 0%, #4D7CFF 100%)",
+    good: "#059669",
+    goodSoft: "rgba(5,150,105,0.08)",
+    warn: "#D97706",
+    warnSoft: "rgba(217,119,6,0.08)",
+    bad: "#DC2626",
+    badSoft: "rgba(220,38,38,0.08)",
+    radius: 12,
+    font: "Inter",
+    mono: "JetBrains Mono",
+  };
+
   const [agentId, setAgentId] = useState("nimbus-proven");
   const [name, setName] = useState("Nimbus Proven Worker");
   const [endpoint, setEndpoint] = useState("http://127.0.0.1:8020/agent");
@@ -956,7 +976,13 @@ function GauntletWorkbench({
 
   return (
     <div
-      style={{ minHeight: "100vh", padding: "28px", boxSizing: "border-box" }}
+      style={{
+        minHeight: "100vh",
+        padding: "28px",
+        boxSizing: "border-box",
+        background: T.bg,
+        fontFamily: T.font,
+      }}
     >
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
         <div
@@ -971,7 +997,7 @@ function GauntletWorkbench({
           <div>
             <div
               style={{
-                color: "var(--muted)",
+                color: T.muted,
                 fontSize: 11,
                 textTransform: "uppercase",
                 letterSpacing: "0.14em",
@@ -985,15 +1011,28 @@ function GauntletWorkbench({
                 margin: "4px 0 0",
                 fontSize: 42,
                 letterSpacing: "-0.035em",
+                color: T.text,
               }}
             >
               Vet an agent before hiring it
             </h1>
           </div>
           <button
-            className="pill"
             onClick={onBack}
-            style={{ height: 36, fontSize: 12 }}
+            style={{
+              background: T.surface,
+              border: `1px solid ${T.border}`,
+              borderRadius: 9999,
+              padding: "0 16px",
+              height: 36,
+              fontSize: 12,
+              fontWeight: 500,
+              color: T.text,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             Back to shop
           </button>
@@ -1007,12 +1046,20 @@ function GauntletWorkbench({
             alignItems: "start",
           }}
         >
-          <GlassCard padding="20px">
+          <div
+            style={{
+              background: T.surface,
+              border: `1px solid ${T.border}`,
+              borderRadius: T.radius,
+              padding: "20px",
+              boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+            }}
+          >
             <div style={{ display: "grid", gap: 12 }}>
               <label
                 style={{
                   fontSize: 11,
-                  color: "var(--muted)",
+                  color: T.muted,
                   textTransform: "uppercase",
                   letterSpacing: "0.12em",
                 }}
@@ -1025,16 +1072,18 @@ function GauntletWorkbench({
                 style={{
                   height: 40,
                   borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "var(--text)",
+                  border: `1px solid ${T.border}`,
+                  background: T.surface,
+                  color: T.text,
                   padding: "0 12px",
+                  fontSize: 13,
+                  outline: "none",
                 }}
               />
               <label
                 style={{
                   fontSize: 11,
-                  color: "var(--muted)",
+                  color: T.muted,
                   textTransform: "uppercase",
                   letterSpacing: "0.12em",
                 }}
@@ -1047,16 +1096,18 @@ function GauntletWorkbench({
                 style={{
                   height: 40,
                   borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "var(--text)",
+                  border: `1px solid ${T.border}`,
+                  background: T.surface,
+                  color: T.text,
                   padding: "0 12px",
+                  fontSize: 13,
+                  outline: "none",
                 }}
               />
               <label
                 style={{
                   fontSize: 11,
-                  color: "var(--muted)",
+                  color: T.muted,
                   textTransform: "uppercase",
                   letterSpacing: "0.12em",
                 }}
@@ -1069,10 +1120,12 @@ function GauntletWorkbench({
                 style={{
                   height: 40,
                   borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "var(--text)",
+                  border: `1px solid ${T.border}`,
+                  background: T.surface,
+                  color: T.text,
                   padding: "0 12px",
+                  fontSize: 13,
+                  outline: "none",
                 }}
               />
               <div
@@ -1084,54 +1137,129 @@ function GauntletWorkbench({
                 }}
               >
                 <button
-                  className="pill"
                   onClick={() => setTargetMode("proven")}
-                  style={{ height: 32, fontSize: 12 }}
+                  style={{
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 9999,
+                    padding: "0 12px",
+                    height: 32,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: T.text,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   Proven target
                 </button>
                 <button
-                  className="pill"
                   onClick={() => setTargetMode("flaky")}
-                  style={{ height: 32, fontSize: 12 }}
+                  style={{
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 9999,
+                    padding: "0 12px",
+                    height: 32,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: T.text,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   Flaky target
                 </button>
                 <button
-                  className="pill"
                   onClick={() => setTargetMode("failing")}
-                  style={{ height: 32, fontSize: 12 }}
+                  style={{
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 9999,
+                    padding: "0 12px",
+                    height: 32,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: T.text,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   Failing target
                 </button>
                 <button
-                  className="pill"
                   onClick={repairTarget}
-                  style={{ height: 32, fontSize: 12 }}
+                  style={{
+                    background: T.surface,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 9999,
+                    padding: "0 12px",
+                    height: 32,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: T.text,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   Apply repair
                 </button>
               </div>
               <button
-                className="pill pill-primary"
                 disabled={busy}
                 onClick={() => runVet(true)}
-                style={{ height: 48, marginTop: 8 }}
+                style={{
+                  background: T.accentGrad,
+                  border: "none",
+                  borderRadius: 9999,
+                  padding: "0 24px",
+                  height: 48,
+                  marginTop: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#FFF",
+                  cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.6 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 {busy ? "Running gauntlet..." : "Run gauntlet"}
               </button>
               <button
-                className="pill"
                 disabled={busy}
                 onClick={() => runVet(false)}
-                style={{ height: 36, fontSize: 12 }}
+                style={{
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 9999,
+                  padding: "0 16px",
+                  height: 36,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: T.text,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.6 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 Run without cache
               </button>
               {error && (
                 <div
                   style={{
-                    color: "var(--verdict-bad)",
+                    color: T.bad,
                     fontSize: 12,
                     lineHeight: 1.5,
                   }}
@@ -1140,10 +1268,18 @@ function GauntletWorkbench({
                 </div>
               )}
             </div>
-          </GlassCard>
+          </div>
 
           <div style={{ display: "grid", gap: 18 }}>
-            <GlassCard padding="22px">
+            <div
+              style={{
+                background: T.surface,
+                border: `1px solid ${T.border}`,
+                borderRadius: T.radius,
+                padding: "22px",
+                boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+              }}
+            >
               {report ? (
                 <div>
                   <div
@@ -1157,7 +1293,7 @@ function GauntletWorkbench({
                     <div>
                       <div
                         style={{
-                          color: "var(--muted)",
+                          color: T.muted,
                           fontSize: 12,
                           marginBottom: 4,
                         }}
@@ -1169,13 +1305,14 @@ function GauntletWorkbench({
                           fontSize: 26,
                           fontWeight: 700,
                           letterSpacing: "-0.025em",
+                          color: T.text,
                         }}
                       >
                         {report.name}
                       </div>
                       <div
                         style={{
-                          color: "var(--text-2)",
+                          color: T.text2,
                           fontSize: 13,
                           marginTop: 8,
                         }}
@@ -1196,7 +1333,7 @@ function GauntletWorkbench({
                       </div>
                       <div
                         style={{
-                          color: "var(--muted)",
+                          color: T.muted,
                           fontSize: 12,
                           marginTop: 4,
                         }}
@@ -1213,19 +1350,72 @@ function GauntletWorkbench({
                       marginTop: 18,
                     }}
                   >
-                    <span className="pill" style={{ height: 28, fontSize: 12 }}>
+                    <span
+                      style={{
+                        background: T.surface,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 9999,
+                        padding: "0 12px",
+                        height: 28,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: T.text,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
                       {report.passed} proven
                     </span>
-                    <span className="pill" style={{ height: 28, fontSize: 12 }}>
+                    <span
+                      style={{
+                        background: T.surface,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 9999,
+                        padding: "0 12px",
+                        height: 28,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: T.text,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
                       {report.inconsistent} inconsistent
                     </span>
-                    <span className="pill" style={{ height: 28, fontSize: 12 }}>
+                    <span
+                      style={{
+                        background: T.surface,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: 9999,
+                        padding: "0 12px",
+                        height: 28,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: T.text,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
                       {report.failed} failed
                     </span>
                     {history && (
                       <span
-                        className="pill"
-                        style={{ height: 28, fontSize: 12 }}
+                        style={{
+                          background: T.surface,
+                          border: `1px solid ${T.border}`,
+                          borderRadius: 9999,
+                          padding: "0 12px",
+                          height: 28,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: T.text,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
                       >
                         {history.diff.runs} run
                         {history.diff.runs === 1 ? "" : "s"} ·{" "}
@@ -1235,11 +1425,18 @@ function GauntletWorkbench({
                     )}
                     {report.harder_gauntlet && (
                       <span
-                        className="pill"
                         style={{
+                          background: T.warnSoft,
+                          border: `1px solid ${T.warn}`,
+                          borderRadius: 9999,
+                          padding: "0 12px",
                           height: 28,
                           fontSize: 12,
-                          color: "var(--verdict-warn)",
+                          fontWeight: 500,
+                          color: T.warn,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
                         harder gauntlet: prior failure
@@ -1260,15 +1457,14 @@ function GauntletWorkbench({
                         <div
                           key={category}
                           style={{
-                            border: "1px solid var(--border)",
+                            border: `1px solid ${T.border}`,
                             borderRadius: 10,
                             padding: 10,
-                            background: "rgba(255,255,255,0.035)",
                           }}
                         >
                           <div
                             style={{
-                              color: "var(--muted)",
+                              color: T.muted,
                               fontSize: 11,
                               textTransform: "uppercase",
                               letterSpacing: "0.08em",
@@ -1276,7 +1472,13 @@ function GauntletWorkbench({
                           >
                             {category}
                           </div>
-                          <div style={{ fontSize: 13, marginTop: 6 }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              marginTop: 6,
+                              color: T.text2,
+                            }}
+                          >
                             {row.proven}/{row.total} proven · {row.failed}{" "}
                             failed
                           </div>
@@ -1299,14 +1501,18 @@ function GauntletWorkbench({
                       style={{ height: 28 }}
                     />
                     <code
-                      style={{ color: "var(--muted)", fontSize: 11 }}
+                      style={{
+                        color: T.muted,
+                        fontSize: 11,
+                        fontFamily: T.mono,
+                      }}
                     >{`/agent/${report.agent_id}/reliability`}</code>
                   </div>
                 </div>
               ) : (
                 <div
                   style={{
-                    color: "var(--muted)",
+                    color: T.muted,
                     minHeight: 120,
                     display: "flex",
                     alignItems: "center",
@@ -1316,7 +1522,7 @@ function GauntletWorkbench({
                   instruction-following, safety, and hallucination-trap probes.
                 </div>
               )}
-            </GlassCard>
+            </div>
 
             <div
               style={{
@@ -1325,10 +1531,18 @@ function GauntletWorkbench({
                 gap: 18,
               }}
             >
-              <GlassCard padding="18px">
+              <div
+                style={{
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: T.radius,
+                  padding: "18px",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+                }}
+              >
                 <div
                   style={{
-                    color: "var(--muted)",
+                    color: T.muted,
                     fontSize: 11,
                     textTransform: "uppercase",
                     letterSpacing: "0.12em",
@@ -1342,10 +1556,9 @@ function GauntletWorkbench({
                     <div
                       key={probe.probe_id}
                       style={{
-                        border: "1px solid var(--border)",
+                        border: `1px solid ${T.border}`,
                         borderRadius: 10,
                         padding: 12,
-                        background: "rgba(255,255,255,0.035)",
                       }}
                     >
                       <div
@@ -1355,7 +1568,9 @@ function GauntletWorkbench({
                           gap: 12,
                         }}
                       >
-                        <div style={{ fontWeight: 600 }}>{probe.probe_id}</div>
+                        <div style={{ fontWeight: 600, color: T.text }}>
+                          {probe.probe_id}
+                        </div>
                         <div
                           style={{
                             color: probeColor(probe.verdict),
@@ -1369,7 +1584,7 @@ function GauntletWorkbench({
                       </div>
                       <div
                         style={{
-                          color: "var(--muted)",
+                          color: T.muted,
                           fontSize: 12,
                           marginTop: 4,
                         }}
@@ -1378,7 +1593,7 @@ function GauntletWorkbench({
                       </div>
                       <div
                         style={{
-                          color: "var(--text-2)",
+                          color: T.text2,
                           fontSize: 12,
                           marginTop: 8,
                           whiteSpace: "pre-wrap",
@@ -1389,11 +1604,19 @@ function GauntletWorkbench({
                     </div>
                   ))}
                 </div>
-              </GlassCard>
-              <GlassCard padding="18px">
+              </div>
+              <div
+                style={{
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: T.radius,
+                  padding: "18px",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+                }}
+              >
                 <div
                   style={{
-                    color: "var(--muted)",
+                    color: T.muted,
                     fontSize: 11,
                     textTransform: "uppercase",
                     letterSpacing: "0.12em",
@@ -1404,7 +1627,7 @@ function GauntletWorkbench({
                 </div>
                 <div style={{ display: "grid", gap: 8 }}>
                   {events.length === 0 ? (
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                    <div style={{ color: T.muted, fontSize: 13 }}>
                       No run yet.
                     </div>
                   ) : (
@@ -1412,9 +1635,9 @@ function GauntletWorkbench({
                       <div
                         key={`${ev}-${i}`}
                         style={{
-                          fontFamily: "var(--font-mono)",
+                          fontFamily: T.mono,
                           fontSize: 11,
-                          color: "var(--text-2)",
+                          color: T.text2,
                         }}
                       >
                         {ev}
@@ -1422,14 +1645,22 @@ function GauntletWorkbench({
                     ))
                   )}
                 </div>
-              </GlassCard>
+              </div>
             </div>
 
             {repair && (
-              <GlassCard padding="18px">
+              <div
+                style={{
+                  background: T.surface,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: T.radius,
+                  padding: "18px",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
+                }}
+              >
                 <div
                   style={{
-                    color: "var(--muted)",
+                    color: T.muted,
                     fontSize: 11,
                     textTransform: "uppercase",
                     letterSpacing: "0.12em",
@@ -1440,7 +1671,7 @@ function GauntletWorkbench({
                 </div>
                 <div
                   style={{
-                    color: "var(--text)",
+                    color: T.text,
                     fontSize: 14,
                     marginBottom: 12,
                   }}
@@ -1457,7 +1688,7 @@ function GauntletWorkbench({
                   <div>
                     <div
                       style={{
-                        color: "var(--muted)",
+                        color: T.muted,
                         fontSize: 12,
                         marginBottom: 8,
                       }}
@@ -1468,7 +1699,7 @@ function GauntletWorkbench({
                       <div
                         key={i}
                         style={{
-                          color: "var(--text-2)",
+                          color: T.text2,
                           fontSize: 12,
                           lineHeight: 1.5,
                           marginBottom: 6,
@@ -1481,7 +1712,7 @@ function GauntletWorkbench({
                   <div>
                     <div
                       style={{
-                        color: "var(--muted)",
+                        color: T.muted,
                         fontSize: 12,
                         marginBottom: 8,
                       }}
@@ -1489,7 +1720,7 @@ function GauntletWorkbench({
                       Recommended repairs
                     </div>
                     {repair.recommended_repairs.length === 0 ? (
-                      <div style={{ color: "var(--text-2)", fontSize: 12 }}>
+                      <div style={{ color: T.text2, fontSize: 12 }}>
                         No repairs needed for this tested scope.
                       </div>
                     ) : (
@@ -1497,7 +1728,7 @@ function GauntletWorkbench({
                         <div
                           key={i}
                           style={{
-                            color: "var(--text-2)",
+                            color: T.text2,
                             fontSize: 12,
                             lineHeight: 1.5,
                             marginBottom: 6,
@@ -1509,7 +1740,7 @@ function GauntletWorkbench({
                     )}
                   </div>
                 </div>
-              </GlassCard>
+              </div>
             )}
           </div>
         </div>
@@ -1752,17 +1983,18 @@ export default function App() {
 
   if (view === "shop") {
     return (
-      <div style={{ minHeight: "100vh" }}>
+      <div style={{ minHeight: "100vh", background: "#FAFAFA" }}>
         {/* Top bar with nav */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "16px 28px",
-            borderBottom: "1px solid var(--border)",
-            background: "rgba(7,7,13,0.85)",
-            backdropFilter: "blur(12px)",
+            padding: "14px 28px",
+            borderBottom: "1px solid #E2E8F0",
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             position: "sticky",
             top: 0,
             zIndex: 10,
@@ -1774,7 +2006,7 @@ export default function App() {
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: "var(--accent-grad)",
+                background: "linear-gradient(135deg, #0052FF 0%, #4D7CFF 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1785,16 +2017,24 @@ export default function App() {
             >
               G
             </div>
-            <span
-              style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>
               Gauntlet
             </span>
           </div>
           <button
             onClick={() => setView("vet")}
-            className="pill"
-            style={{ height: 34, fontSize: 12 }}
+            style={{
+              height: 34,
+              fontSize: 12,
+              fontWeight: 500,
+              padding: "0 16px",
+              borderRadius: 20,
+              border: "1px solid #E2E8F0",
+              background: "#FFFFFF",
+              color: "#475569",
+              cursor: "pointer",
+              fontFamily: '"Inter", system-ui, sans-serif',
+            }}
           >
             Vet an agent
           </button>
