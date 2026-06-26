@@ -67,6 +67,11 @@ async def call_target_agent(target: TargetAgent, prompt: str, *, timeout_s: floa
             if resp.is_error:
                 response_text = f"HTTP {resp.status_code}: {response_text[:500]}"
         except Exception as exc:  # noqa: BLE001 - transcript should capture failures
+            import logging, traceback
+            logging.getLogger("gauntlet.target_client").error(
+                "call_target_agent FAILED url=%s exc_type=%s exc=%s\n%s",
+                target.endpoint, type(exc).__name__, exc, traceback.format_exc()
+            )
             response_text = f"CALL_FAILED: {exc}"
 
     latency_ms = (time.perf_counter() - started) * 1000.0

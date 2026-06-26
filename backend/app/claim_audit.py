@@ -26,17 +26,27 @@ async def audit_claims(products: list[dict]) -> list[dict]:
         settings.GMI_API_KEY or settings.CHEAP_API_KEY or settings.ANTHROPIC_API_KEY
     )
 
-    for product in products:
-        claims = product.get("claims", [])
-        for i, claim in enumerate(claims):
-            if claim.get("verdict") != "PENDING":
-                continue
-            if has_exa and has_llm:
-                if i > 0:
-                    await asyncio.sleep(0.5)  # rate-limit courtesy gap
+    pending = [
+        claim
+        for product in products
+        for claim in product.get("claims", [])
+        if claim.get("verdict") == "PENDING"
+    ]
+
+    if has_exa and has_llm:
+        # Sequential live audits made a five-product fallback take over a
+        # minute. Bound concurrency to stay friendly to providers while keeping
+        # the buyer endpoint inside its HTTP proxy budget.
+        semaphore = asyncio.Semaphore(4)
+
+        async def audit_one(claim: dict) -> None:
+            async with semaphore:
                 await _audit_claim_live(claim)
-            else:
-                _audit_claim_mock(claim)
+
+        await asyncio.gather(*(audit_one(claim) for claim in pending))
+    else:
+        for claim in pending:
+            _audit_claim_mock(claim)
     return products
 
 
@@ -53,8 +63,10 @@ async def _audit_claim_live(claim: dict) -> None:
         from app.exa_client import search as exa_search
 
         result = await exa_search(f"{text} review evidence", 3)
-        snippets = [r.get("text", "")[:300] for r in result.get("results", [])]
-        urls = [r.get("url", "") for r in result.get("results", [])]
+        snippets = [
+            str(r.get("text") or "")[:300] for r in result.get("results", [])
+        ]
+        urls = [str(r.get("url") or "") for r in result.get("results", [])]
     except Exception:
         snippets, urls = [], []
 

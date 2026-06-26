@@ -86,14 +86,19 @@ class TestBuyerSearch:
             assert "price" in p
             assert "$" in p["price"]
 
-    def test_buyer_search_no_vetted_agents(self, client):
-        """Returns 404 when no shopping agents have been vetted."""
+    def test_buyer_search_uses_direct_fallback_without_vetted_agents(self, client):
+        """Runs the direct pipeline when no shopping agents have been vetted."""
         # Clear reputation by writing empty store
         store_path = DATA_DIR / "reputation.json"
         store_path.write_text("{}")
 
         resp = client.post("/buyer/search", json={"query": "anything"})
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["agent_id"] == "gauntlet-direct"
+        assert data["agent_name"] == "Gauntlet Direct"
+        assert data["reliability_score"] is None
+        assert data["products"]
 
 
 class TestAgentDirectory:

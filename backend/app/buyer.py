@@ -11,9 +11,22 @@ The buyer agent is the orchestrator in the "vet then buy" flow:
 
 from __future__ import annotations
 
+import asyncio
+import logging
+import time
 import uuid
 
 from app.schemas import ShopSearchResponse
+
+log = logging.getLogger("gauntlet.buyer")
+
+# Next's development rewrite returns a 500 when an upstream request runs for
+# roughly 30 seconds. The previous 24s budget left only ~6s for proxying +
+# response validation, so any GMI latency tipped the round-trip past 30s and
+# surfaced as "Internal Server Error". 18s keeps a ~12s safety margin — the
+# audit stage returns partial verdicts rather than blowing the proxy timeout.
+BUYER_SEARCH_BUDGET_S = 18.0
+EXTRACTION_BUDGET_S = 6.0
 
 
 async def _discover_agents() -> list[dict]:
@@ -46,6 +59,7 @@ async def search_and_vet(query: str) -> ShopSearchResponse:
     Exa search + LLM extraction + claim audit — so the panel always
     returns live data when API keys are configured."""
     run_id = uuid.uuid4().hex[:8]
+    deadline = time.monotonic() + BUYER_SEARCH_BUDGET_S
     agents = await _discover_agents()
 
     if agents:
@@ -84,7 +98,18 @@ async def search_and_vet(query: str) -> ShopSearchResponse:
         f"Extracting products from {len(search_texts)} search results…",
         run_id=run_id,
     )
-    products = await extract_products(query, search_texts)
+    try:
+        products = await asyncio.wait_for(
+            extract_products(query, search_texts),
+            timeout=min(EXTRACTION_BUDGET_S, max(0.1, deadline - time.monotonic())),
+        )
+    except TimeoutError:
+        # A slow or malformed LLM response must not consume the entire HTTP
+        # request. Raw Exa results still provide useful product cards.
+        from app.product_extraction import _raw_results_as_products
+
+        log.warning("Product extraction exceeded buyer request budget; using raw results")
+        products = _raw_results_as_products(search_texts)
     evt(
         "extracting",
         f"Identified {len(products)} product(s)",
@@ -103,7 +128,29 @@ async def search_and_vet(query: str) -> ShopSearchResponse:
         run_id=run_id,
     )
     products_dicts = [p.model_dump(mode="json") for p in products]
-    audited_dicts = await audit_claims(products_dicts)
+    remaining = deadline - time.monotonic()
+    if remaining > 0.1:
+        try:
+            audited_dicts = await asyncio.wait_for(
+                audit_claims(products_dicts),
+                timeout=remaining,
+            )
+        except TimeoutError:
+            # audit_claims mutates products in place, so completed verdicts are
+            # retained while unfinished claims remain PENDING for the UI.
+            log.warning("Claim audit exceeded buyer request budget; returning partial results")
+            audited_dicts = products_dicts
+    else:
+        audited_dicts = products_dicts
+    # Any claim still PENDING means the audit budget elapsed before its judge
+    # call finished. Resolve it to a terminal verdict so the UI doesn't show a
+    # perpetual "auditing…" spinner — honest: we found no public receipt in time.
+    for p in audited_dicts:
+        for c in p.get("claims", []):
+            if c.get("verdict") == "PENDING":
+                c["verdict"] = "NO_PUBLIC_RECEIPT_FOUND"
+                c.setdefault("receipts", [])
+
     # Convert dicts back to ProductResult
     audited_products = [ProductResult(**p) for p in audited_dicts]
 

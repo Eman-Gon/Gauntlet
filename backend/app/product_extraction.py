@@ -10,6 +10,7 @@ as product cards so users can see live data even without LLM keys."""
 from __future__ import annotations
 
 import logging
+import re
 
 from app.schemas import ProductResult
 from app.shopping_agent import _find_mock_products
@@ -154,20 +155,27 @@ def _raw_results_as_products(search_texts: list[dict]) -> list[ProductResult]:
     as name, snippets as claims, and URL as source."""
     products: list[ProductResult] = []
     seen_urls: set[str] = set()
-    for r in search_texts:
+    # Three focused cards are preferable to auditing dozens of navigation and
+    # page-chrome fragments when structured extraction is unavailable.
+    for r in search_texts[:3]:
         url = r.get("url", "")
         if not url or url in seen_urls:
             continue
         seen_urls.add(url)
-        title = r.get("title", "Untitled")
-        text = r.get("text", "")
+        title = str(r.get("title") or "Untitled")
+        text = str(r.get("text") or "")
         # Extract checkable claims from the snippet text
         claims: list[dict] = []
         if text:
             sentences = [
-                s.strip() for s in text.replace("\n", ". ").split(".") if s.strip()
+                s.strip()
+                for s in re.split(r"(?<=[.!?])\s+", text.replace("\n", " "))
+                if len(s.strip()) >= 20
             ]
-            claims = [{"text": s[:200], "verdict": "PENDING"} for s in sentences[:5]]
+            claims = [
+                {"text": sentence[:200], "verdict": "PENDING"}
+                for sentence in sentences[:3]
+            ]
         products.append(
             ProductResult(
                 name=title[:120],

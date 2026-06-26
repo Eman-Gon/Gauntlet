@@ -12,6 +12,8 @@ const proxiedPaths = [
   "/buyer/:path*",
   "/agents/:path*",
   "/vet",
+  "/vet/:path*",
+  "/debug/:path*",
   "/agent/:path*",
 ];
 

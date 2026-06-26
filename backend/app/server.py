@@ -179,6 +179,64 @@ async def vet_results(run_id: str) -> Any:
     return {"status": "running", "run_id": run_id}
 
 
+@app.get("/vet/{run_id}/log")
+async def vet_log(run_id: str, limit: int = 1000) -> Any:
+    """Backlog: the persisted JSONL telemetry for a run, oldest-first.
+
+    Survives after the live SSE stream closes, so it is the debugging source
+    of truth — every measured event, not the truncated UI feed."""
+    from app.telemetry import LOGS_DIR
+
+    path = LOGS_DIR / f"run_{run_id}.jsonl"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no log for this run")
+
+    events: list[Any] = []
+    with path.open("rb") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(orjson.loads(line))
+            except Exception:
+                continue
+
+    bus = _RUNS.get(run_id)
+    return {
+        "run_id": run_id,
+        "count": len(events),
+        "active": bus is not None,
+        "totals": bus.totals if bus else None,
+        "events": events[-limit:],
+    }
+
+
+@app.get("/debug/runs")
+async def debug_runs(limit: int = 50) -> Any:
+    """Backlog index: recent run logs on disk, newest-first. The entry point
+    for browsing past vet/audit runs when debugging."""
+    from app.telemetry import LOGS_DIR
+
+    runs: list[dict] = []
+    for p in LOGS_DIR.glob("run_*.jsonl"):
+        rid = p.stem[len("run_"):]
+        try:
+            stat = p.stat()
+        except Exception:
+            continue
+        runs.append(
+            {
+                "run_id": rid,
+                "size_bytes": stat.st_size,
+                "modified_at": stat.st_mtime,
+                "active": rid in _RUNS,
+            }
+        )
+    runs.sort(key=lambda r: r["modified_at"], reverse=True)
+    return {"count": len(runs), "runs": runs[:limit]}
+
+
 @app.get("/agent/{agent_id}/reliability")
 async def agent_reliability(agent_id: str) -> Any:
     """Marketplace primitive: current reliability report for an agent id."""

@@ -10,9 +10,7 @@ Falls back to mock data when EXA_API_KEY is absent (always-runs contract).
 
 from __future__ import annotations
 
-import json
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+import httpx
 
 EXA_API = "https://api.exa.ai/search"
 
@@ -65,29 +63,29 @@ async def search(query: str, num_results: int = 5) -> dict:
         return {"results": _mock_search(query, num_results), "mock": True}
 
     try:
-        body = json.dumps(
-            {
-                "query": query,
-                "numResults": num_results,
-                "contents": {"text": True},
-            }
-        ).encode()
-        req = Request(EXA_API, data=body, method="POST")
-        req.add_header("Authorization", f"Bearer {key}")
-        req.add_header("Content-Type", "application/json")
-        with urlopen(req, timeout=15) as resp:  # noqa: S310
-            data = json.loads(resp.read().decode("utf-8"))
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                EXA_API,
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "query": query,
+                    "numResults": num_results,
+                    "contents": {"text": True},
+                },
+            )
+        resp.raise_for_status()
+        data = resp.json()
         results = []
         for r in data.get("results", []):
             results.append(
                 {
-                    "title": r.get("title", ""),
-                    "url": r.get("url", ""),
-                    "text": r.get("text", ""),
+                    "title": str(r.get("title") or ""),
+                    "url": str(r.get("url") or ""),
+                    "text": str(r.get("text") or ""),
                 }
             )
         return {"results": results, "mock": False}
-    except (HTTPError, URLError, Exception) as exc:
+    except Exception as exc:
         import logging
 
         logging.getLogger("gauntlet.exa").warning(
