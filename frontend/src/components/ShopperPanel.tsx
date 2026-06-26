@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { GlassCard } from "./GlassCard";
+import { API_BASE } from "../lib/api";
 
 /*
   ShopperPanel -- buyer agent embedded in Gauntlet's dashboard.
@@ -32,11 +33,6 @@ interface PurchaseResult {
 }
 
 type Phase = "idle" | "loading" | "results" | "purchasing" | "purchased";
-
-const API_BASE = (
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
-    ?.VITE_API_URL || ""
-).replace(/\/+$/, "");
 
 function scoreColor(score: number | null) {
   if (score === null) return "var(--muted)";

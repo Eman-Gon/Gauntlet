@@ -66,7 +66,7 @@
   --radius-full: 9999px;
 }
 
-html, body, #root {
+html, body {
   height: 100%;
   background: var(--bg-grad);
   background-attachment: fixed;

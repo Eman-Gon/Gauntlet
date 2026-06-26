@@ -237,7 +237,7 @@ GAUNTLET SERVICE  (FastAPI · AgentBox container)
 | Inference — cheap tier | GMI Cloud (OpenAI-compatible, 100+ models, single API key) |
 | Inference — premium tier | Anthropic Claude (Sonnet 4.6) |
 | Evidence search | Tavily |
-| Frontend | React, TypeScript, Vite |
+| Frontend | Next.js, React, TypeScript |
 | Container | Docker (AgentBox-deployable) |
 | Memory store | Local JSON (default); HydraDB (optional upgrade) |
 | Deployment | GMI Cloud / AgentBox marketplace |

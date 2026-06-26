@@ -1,18 +1,16 @@
+"use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { GauntletLogo } from "./components/GauntletLogo";
 import { StatusStrip } from "./components/StatusStrip";
 import { ActivityFeed } from "./components/ActivityFeed";
 import { GlassCard } from "./components/GlassCard";
 import { ShopperPanel } from "./components/ShopperPanel";
+import { API_BASE } from "./lib/api";
 
-// Backend API base. Empty string keeps the Vite dev proxy working locally
-// (relative /audit hits the Vite proxy → localhost:8000). On Railway the
-// frontend is a static build that must call the backend's public URL
-// directly, set via VITE_API_URL at build time.
-const API_BASE = (
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env
-    ?.VITE_API_URL || ""
-).replace(/\/+$/, "");
+// Backend API base. Empty string keeps Next rewrites working locally
+// (relative /audit hits BACKEND_URL, default localhost:8000). Production can
+// call the backend directly by setting NEXT_PUBLIC_API_URL at build time.
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

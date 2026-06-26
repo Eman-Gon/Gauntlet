@@ -36,6 +36,11 @@ uv run uvicorn app.test_vendor:app --app-dir backend --host 127.0.0.1 --port 802
 cd frontend && npm install && npm run dev   # http://localhost:3000
 ```
 
+The frontend is a Next.js app. In local dev, relative API calls are proxied to
+the backend through `BACKEND_URL` (default `http://localhost:8000`). In
+production, set `NEXT_PUBLIC_API_URL` if the browser should call the backend's
+public URL directly.
+
 **Boot contract:** only `ANTHROPIC_API_KEY` or `GMI_API_KEY` + `TAVILY_API_KEY`
 required. Everything else degrades gracefully.
 
@@ -127,8 +132,11 @@ gauntlet/
 │  └─ app.py                controllable fictional worker (Nimbus); POST /mode to
 │                           switch proven/flaky/failing; POST /repair to recover
 ├─ frontend/
+│  ├─ next.config.mjs      Next rewrites for backend API paths
 │  └─ src/
+│     ├─ app/              Next app router shell
 │     ├─ App.tsx            GauntletWorkbench — vet panel, probe verdicts, repair brief
+│     ├─ lib/api.ts         NEXT_PUBLIC_API_URL client base
 │     ├─ index.css          dark liquid-glass tokens · event-driven keyframes
 │     └─ components/        GlassCard, ActivityFeed, StatusStrip, GauntletLogo
 ├─ Dockerfile               AgentBox-deployable container
@@ -176,6 +184,10 @@ MEMORY_BACKEND=local
 # flags
 HONEST_AD_ENABLED=false   # Magnific not a sponsor here
 WATCH_ENABLED=true
+
+# frontend
+BACKEND_URL=http://localhost:8000       # used by Next rewrites in dev/server deploys
+NEXT_PUBLIC_API_URL=                    # optional public backend base for browser calls
 ```
 
 See `.env.example` for the full list.

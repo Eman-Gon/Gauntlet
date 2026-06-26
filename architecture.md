@@ -177,11 +177,13 @@ Fetches the reliability report for each candidate from `/agent/{id}/reliability`
 
 ## Frontend
 
-`frontend/src/` — Vite + React + TypeScript.
+`frontend/` — Next.js + React + TypeScript.
 
 | Component | Role |
 |---|---|
 | `App.tsx` | Main layout, SSE subscription to `/activity/stream`, state management |
+| `src/app/` | Next app router shell and metadata |
+| `next.config.mjs` | Backend API rewrites for local and server deployments |
 | `ActivityFeed.tsx` | Live probe-by-probe event stream |
 | `GlassCard.tsx` | Reliability card: score, verdict breakdown, harder-gauntlet badge |
 | `StatusStrip.tsx` | Top bar: watcher state, cost counter |
@@ -260,6 +262,10 @@ TARGET_AGENT_URL=http://127.0.0.1:9000/agent
 HONEST_AD_ENABLED=false
 WATCH_ENABLED=true
 WATCH_INTERVAL_S=30
+
+# frontend
+BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=
 ```
 
 Memory defaults to local JSON. HydraDB (`HYDRADB_URL`, `HYDRADB_API_KEY`) is an optional upgrade and is never a boot dependency.
@@ -274,7 +280,7 @@ Memory defaults to local JSON. HydraDB (`HYDRADB_URL`, `HYDRADB_API_KEY`) is an 
 - `telemetry.py` — TelemetryBus, SSE, JSONL
 - `cache.py` — hash-keyed run cache
 - `server.py` — FastAPI shell, SSE machinery, legacy `/audit` surface
-- `frontend/` — glass tokens, SSE subscription pattern
+- `frontend/` — glass tokens, SSE subscription pattern, Next.js app shell
 
 **New (built at the Beta Fund hackathon, June 26):**
 - `target_client.py` — black-box agent adapter
