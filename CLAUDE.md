@@ -175,16 +175,23 @@ Banned in UI copy: "bad agent," "scam," "liar," "fraud," "broken." We describe b
 
 ```bash
 # inference (required)
-ANTHROPIC_API_KEY=            # premium tier of the judge cascade
+ANTHROPIC_API_KEY=            # premium tier fallback
 PREMIUM_MODEL=claude-sonnet-4-6
-# cheap tier: use GMI Cloud's single-key access to 200+ models here
-GMI_API_KEY=                  # GMI Cloud (cheap-tier judge AND the platform we deploy on)
-GMI_BASE_URL=                 # OpenAI-compatible; confirm at the GMI workshop/booth
-CHEAP_MODEL=                  # pick a small fast GMI-hosted model
+
+# GMI Cloud — primary provider (cheap + medium tiers, also the deploy platform)
+# Base URL confirmed: https://api.gmi-serving.com/v1
+# Model ID format: Provider/model-name
+GMI_API_KEY=
+GMI_BASE_URL=https://api.gmi-serving.com/v1
+CHEAP_BASE_URL=https://api.gmi-serving.com/v1
+CHEAP_API_KEY=                # same as GMI_API_KEY
+CHEAP_MODEL=Qwen/Qwen3-30B-A3B           # fast MoE, $0.08/$0.25 per 1M
+MEDIUM_MODEL=nvidia/nemotron-3-ultra-550b-a55b  # escalation tier, $0.80/$2.60 per 1M
 JUDGE_CONFIDENCE_THRESHOLD=0.7
 
 # evidence (required for hunt-style probes)
-TAVILY_API_KEY=               # have it (+ backup)
+TAVILY_API_KEY=               # primary search
+EXA_API_KEY=                  # secondary search
 
 # target under test
 TARGET_AGENT_URL=             # the agent being vetted (AgentBox agent or any endpoint)
@@ -194,12 +201,18 @@ MEMORY_BACKEND=local          # local persisted graph/JSON by default
 HYDRADB_URL=                  # optional stretch: real compounding-memory substrate
 HYDRADB_API_KEY=
 
-# watch loop (optional)
+# watch loop
 WATCH_ENABLED=true
 WATCH_INTERVAL_S=30
 
 # flags
 HONEST_AD_ENABLED=false       # Magnific OFF, not a sponsor here
+
+# pricing (for dashboard cost tracking)
+CHEAP_INPUT_PER_MTOK=0.05
+CHEAP_OUTPUT_PER_MTOK=0.10
+MEDIUM_INPUT_PER_MTOK=0.80
+MEDIUM_OUTPUT_PER_MTOK=2.60
 ```
 
 **Setup quick path:**

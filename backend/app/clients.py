@@ -57,6 +57,10 @@ def _use_tf() -> bool:
     )
 
 
+def _use_gmi() -> bool:
+    return bool(settings.GMI_API_KEY and settings.GMI_BASE_URL)
+
+
 def _use_pioneer() -> bool:
     """All three Pioneer inputs present → cheap tier goes direct to Pioneer.
     S1 fallback path: TF not configured, premium stays direct-Anthropic. When
@@ -144,6 +148,7 @@ class ChatResult:
 
 _cheap_client_oai: Optional[AsyncOpenAI] = None
 _pioneer_client_oai: Optional[AsyncOpenAI] = None
+_gmi_client_oai: Optional[AsyncOpenAI] = None
 _premium_client_oai: Optional[AsyncOpenAI] = None
 _premium_client_native: Optional[AsyncAnthropic] = None
 
@@ -161,6 +166,17 @@ def _tf_client() -> AsyncOpenAI:
     return _cheap_client_oai
 
 
+def _gmi_client() -> AsyncOpenAI:
+    global _gmi_client_oai
+    if _gmi_client_oai is None or _gmi_client_oai.base_url != settings.GMI_BASE_URL:
+        _gmi_client_oai = AsyncOpenAI(
+            base_url=settings.GMI_BASE_URL,
+            api_key=settings.GMI_API_KEY,
+            max_retries=0,
+        )
+    return _gmi_client_oai
+
+
 def _pioneer_client() -> AsyncOpenAI:
     """Pioneer's OpenAI-compatible endpoint. Used by cheap tier on the S1
     fallback path (no TF). Cached separately from _cheap_client_oai so the
@@ -176,10 +192,12 @@ def _pioneer_client() -> AsyncOpenAI:
 
 
 def cheap_client() -> AsyncOpenAI:
-    """OpenAI-shaped cheap client. Priority: TF gateway → direct Pioneer →
+    """OpenAI-shaped cheap client. Priority: TF gateway → GMI → Pioneer →
     D00 Anthropic OpenAI-compat stand-in."""
     if _use_tf():
         return _tf_client()
+    if _use_gmi():
+        return _gmi_client()
     if _use_pioneer():
         return _pioneer_client()
     global _cheap_client_oai
@@ -341,11 +359,19 @@ async def chat(
             timeout=timeout,
         )
 
-    # Pioneer premium path. Pioneer's OpenAI-compatible gateway serves the
-    # frontier models (incl. PREMIUM_MODEL = claude-sonnet-4-6), so when Pioneer
-    # is configured we route premium through it too — one working gateway for
-    # both tiers. This is also the only working premium path when the direct
-    # ANTHROPIC_API_KEY is unset/invalid.
+    # GMI premium path — OpenAI-compatible, hosts claude-sonnet-4-6.
+    if _use_gmi():
+        return await _openai_chat(
+            _gmi_client(),
+            settings.PREMIUM_MODEL,
+            messages,
+            tier="premium",
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=timeout,
+        )
+
+    # Pioneer premium path.
     if _use_pioneer():
         return await _openai_chat(
             _pioneer_client(),

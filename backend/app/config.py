@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     CHEAP_OUTPUT_PER_MTOK: float = 0.10
     CHEAP_ATTEMPT_COST_USD: float = 0.0002
 
+    # Medium tier — escalation step between cheap and premium (Nemotron Ultra)
+    MEDIUM_MODEL: str = ""
+    MEDIUM_INPUT_PER_MTOK: float = 0.80
+    MEDIUM_OUTPUT_PER_MTOK: float = 2.60
+
     # Pioneer (D02) — adaptive cheap tier + feedback loop. Blank until D02.
     PIONEER_API_KEY: str = ""
     PIONEER_BASE_URL: str = ""
@@ -67,6 +72,7 @@ class Settings(BaseSettings):
             "PIONEER_INPUT_PER_MTOK", "PIONEER_OUTPUT_PER_MTOK",
             "CHEAP_INPUT_PER_MTOK", "CHEAP_OUTPUT_PER_MTOK",
             "CHEAP_ATTEMPT_COST_USD", "X402_PRICE_USD",
+            "MEDIUM_INPUT_PER_MTOK", "MEDIUM_OUTPUT_PER_MTOK",
             "JUDGE_CONFIDENCE_THRESHOLD", "SCRAPE_TIMEOUT_S",
             "LLM_TIMEOUT_S", "CHEAP_LLM_TIMEOUT_S",
         }
@@ -86,6 +92,7 @@ class Settings(BaseSettings):
     # ── evidence ─────────────────────────────────────────────────────────────
     TAVILY_API_KEY: str = ""
     TAVILY_API_KEY_BACKUP: str = ""
+    EXA_API_KEY: str = ""
 
     # ── publish / pay / act / store (all blank until their dispatch) ─────────
     SENSO_API_KEY: str = ""
@@ -175,12 +182,12 @@ def cheap_effective_api_key() -> str:
 
 
 def require_boot_keys() -> None:
-    """Hard-require only the two keys the engine cannot run without."""
-    missing = [
-        name
-        for name in ("ANTHROPIC_API_KEY", "TAVILY_API_KEY")
-        if not getattr(settings, name)
-    ]
+    """Hard-require an inference key (Anthropic OR GMI) plus Tavily."""
+    missing = []
+    if not settings.ANTHROPIC_API_KEY and not settings.GMI_API_KEY:
+        missing.append("ANTHROPIC_API_KEY or GMI_API_KEY")
+    if not settings.TAVILY_API_KEY:
+        missing.append("TAVILY_API_KEY")
     if missing:
         raise RuntimeError(
             "Gauntlet boot requires " + " + ".join(missing) + " in .env."
