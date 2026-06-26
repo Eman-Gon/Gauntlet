@@ -13,6 +13,15 @@ records transcripts, scores reliability, persists reputation memory, and exposes
 Verdicts report what the agent **did** under probing, not character:
 `PROVEN`, `INCONSISTENT`, or `FAILED`, with transcripts attached.
 
+## Buyer Panel
+
+Gauntlet includes a user-facing buyer panel: search for products, see which
+vetted shopping agent found them, inspect claim audits against public evidence,
+and complete a Stripe test purchase -- all on one page.
+
+See [docs/CONTEXT.md](docs/CONTEXT.md) for the full domain glossary and
+[docs/adr/](docs/adr/) for architecture decisions.
+
 ## Attribution
 
 Audit engine, cascade, telemetry, and dashboard patterns are adapted from our
