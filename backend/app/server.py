@@ -17,6 +17,9 @@ GET  /activity/stream             — SSE of the global activity bus
 from __future__ import annotations
 
 import asyncio
+import re
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
@@ -521,6 +524,168 @@ async def activity_stream(request: Request) -> EventSourceResponse:
             bus.unsubscribe(queue)
 
     return EventSourceResponse(gen())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AgentBox — OpenAI-compatible chat completions surface
+# Makes Gauntlet hireable as an agent on the AgentBox marketplace.
+# AgentBox calls agents via POST /v1/chat/completions; this endpoint parses
+# the user message, routes to the appropriate Gauntlet action, and responds
+# in standard OpenAI chat-completion format.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class _ChatCompletionRequest(BaseModel):
+    model: str = "gauntlet-v1"
+    messages: list[_ChatMessage]
+    stream: bool = False
+
+
+def _completion(content: str) -> dict:
+    return {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": "gauntlet-v1",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    }
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(req: _ChatCompletionRequest) -> dict:
+    """OpenAI-compatible endpoint for AgentBox. Natural language interface to Gauntlet.
+
+    Supported intents (detected from the last user message):
+      vet <name> at <url>       → kick off a probe battery
+      reliability for <id>      → return the current reliability report
+      agents / list             → vetted agent directory
+      <anything else>           → capability description
+    """
+    user_msg = next(
+        (m.content for m in reversed(req.messages) if m.role == "user"), ""
+    ).strip()
+    low = user_msg.lower()
+
+    # ── reliability report ───────────────────────────────────────────────────
+    if any(kw in low for kw in ("reliability", "report", "score", "trust")):
+        match = re.search(r"(?:for|of)\s+([a-z0-9_\-]+)", low) or re.search(
+            r"(?:reliability|report|score)\s+([a-z0-9_\-]+)", low
+        )
+        if match:
+            agent_id = match.group(1)
+            from app.reputation import latest_report
+
+            report = latest_report(agent_id)
+            if report is None:
+                content = (
+                    f"No reliability data found for '{agent_id}'. "
+                    f"To vet this agent: vet {agent_id} at <endpoint_url>"
+                )
+            else:
+                pct = round(report.reliability_score * 100)
+                lines = [
+                    f"**Reliability Report: {report.name}**\n",
+                    f"Score: {pct}%  |  Recommendation: {report.recommendation}",
+                    f"Probes: {report.passed} PROVEN · {report.inconsistent} INCONSISTENT · {report.failed} FAILED",
+                ]
+                if report.harder_gauntlet:
+                    lines.append("\n⚠  Harder gauntlet applied (prior failure on record).")
+                for cat, bd in report.category_breakdown.items():
+                    lines.append(
+                        f"{cat}: {bd.get('verdict', 'N/A')} "
+                        f"({bd.get('passed', 0)}/{bd.get('total', 0)} probes)"
+                    )
+                lines.append(f"\nFull JSON: GET /agent/{agent_id}/reliability")
+                content = "\n".join(lines)
+            return _completion(content)
+
+    # ── vet an agent ─────────────────────────────────────────────────────────
+    if any(kw in low for kw in ("vet", "probe", "audit", "evaluate", "test")):
+        url_match = re.search(r"(https?://[^\s]+)", user_msg)
+        name_match = re.search(
+            r"(?:vet|probe|audit|evaluate|test)\s+([^@\s]+?)(?:\s+at\s+|\s+https?://|$)", low
+        )
+        if url_match:
+            endpoint = url_match.group(1)
+            agent_name = (name_match.group(1).strip() if name_match else "unknown-agent")
+            agent_id = re.sub(r"[^a-z0-9_\-]", "-", agent_name).strip("-") or "unknown"
+
+            from app.schemas import TargetAgent
+
+            target = TargetAgent(agent_id=agent_id, name=agent_name, endpoint=endpoint)
+            bus = TelemetryBus(parent_bus=gauntlet_watch.state().activity_bus)
+            _RUNS[bus.run_id] = bus
+
+            from app.gauntlet import vet_agent
+
+            task = asyncio.create_task(
+                vet_agent(target, bus=bus, use_cache=True, force_deeper=False)
+            )
+            _TASKS[bus.run_id] = task
+
+            content = (
+                f"Gauntlet probe battery started for **{agent_name}** ({endpoint}).\n\n"
+                f"Run ID: `{bus.run_id}`\n"
+                f"Live stream: GET /vet/{bus.run_id}/stream\n"
+                f"Results:     GET /vet/{bus.run_id}/results\n"
+                f"Reliability: GET /agent/{agent_id}/reliability  (available once the run completes)\n\n"
+                "Probes: correctness · consistency · instruction-following · safety · hallucination. "
+                "Results persist — a prior failure triggers a deeper gauntlet on the next run."
+            )
+            return _completion(content)
+        else:
+            return _completion(
+                "To vet an agent, include its endpoint URL. Example:\n\n"
+                "  vet my-agent at https://example.com/agent\n\n"
+                "Or POST directly to /vet with a JSON body."
+            )
+
+    # ── agent directory ───────────────────────────────────────────────────────
+    if any(kw in low for kw in ("agents", "list", "directory", "available", "who")):
+        from app.reputation import _load
+
+        store = _load()
+        rows = []
+        for aid, data in store.items():
+            latest = data.get("latest", {})
+            if latest:
+                pct = round(latest.get("reliability_score", 0) * 100)
+                rows.append(
+                    f"- **{latest.get('name', aid)}** (`{aid}`) — {pct}% reliable"
+                )
+        if rows:
+            content = "**Vetted Agents**\n\n" + "\n".join(rows) + "\n\nFull JSON: GET /agents"
+        else:
+            content = "No agents vetted yet. Say 'vet <name> at <url>' to start."
+        return _completion(content)
+
+    # ── default: capability card ──────────────────────────────────────────────
+    return _completion(
+        "**Gauntlet** — Agent reliability vetting for the AgentBox marketplace.\n\n"
+        "I run a probe battery against any agent and return a reliability score that "
+        "compounds across sessions. An agent that failed before faces a harder gauntlet next time.\n\n"
+        "**Commands:**\n"
+        "- `vet <name> at <url>` — correctness · consistency · safety · hallucination probes\n"
+        "- `reliability for <agent-id>` — current reliability report\n"
+        "- `agents` — vetted agent directory\n\n"
+        "**API:**\n"
+        "- POST /vet — structured vetting request\n"
+        "- GET /agent/{id}/reliability — reliability report (for buyers and other agents)\n"
+        "- GET /agents — full vetted agent directory\n"
+        "- GET /agent/{id}/badge.svg — embeddable marketplace badge"
+    )
 
 
 # ════════════════════════════════════════════════════════════════

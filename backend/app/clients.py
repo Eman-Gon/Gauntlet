@@ -38,8 +38,18 @@ log = logging.getLogger("gauntlet.clients")
 Tier = Literal["cheap", "premium"]
 
 
+def _effective_gmi_key() -> str:
+    """Prefer GMI_MAAS_API_KEY (injected by AgentBox) over GMI_API_KEY."""
+    return settings.GMI_MAAS_API_KEY or settings.GMI_API_KEY
+
+
+def _effective_gmi_base_url() -> str:
+    """Prefer GMI_MAAS_BASE_URL (injected by AgentBox) over GMI_BASE_URL."""
+    return settings.GMI_MAAS_BASE_URL or settings.GMI_BASE_URL
+
+
 def _use_gmi() -> bool:
-    return bool(settings.GMI_API_KEY and settings.GMI_BASE_URL)
+    return bool(_effective_gmi_key() and _effective_gmi_base_url())
 
 
 # COST TABLE — verified at platform.claude.com on 2026-06-10.
@@ -98,10 +108,11 @@ _premium_client_native: Optional[AsyncAnthropic] = None
 
 def _gmi_client() -> AsyncOpenAI:
     global _gmi_client_oai
-    if _gmi_client_oai is None or _gmi_client_oai.base_url != settings.GMI_BASE_URL:
+    url = _effective_gmi_base_url()
+    if _gmi_client_oai is None or str(_gmi_client_oai.base_url) != url:
         _gmi_client_oai = AsyncOpenAI(
-            base_url=settings.GMI_BASE_URL,
-            api_key=settings.GMI_API_KEY,
+            base_url=url,
+            api_key=_effective_gmi_key(),
             max_retries=0,
         )
     return _gmi_client_oai

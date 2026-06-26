@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # Single key unlocks 200+ OpenAI-compatible models.
     GMI_API_KEY: str = ""
     GMI_BASE_URL: str = ""
+    # Injected by AgentBox at container runtime — take priority over GMI_API_KEY
+    # when present. Never hardcode these; GMI injects them into the environment.
+    GMI_MAAS_API_KEY: str = ""
+    GMI_MAAS_BASE_URL: str = ""
+    GMI_MODELS: str = ""
 
     # ── gauntlet agent-vetting layer ─────────────────────────────────────────
     TARGET_AGENT_URL: str = ""
